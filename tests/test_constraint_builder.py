@@ -62,9 +62,12 @@ def test_fixture_only_path_produces_demo_ready_inputs(
         "R_OUTWASH",
         "R_SCHIST",
     }
-    # Surface points should anchor every formation; orientations 1:1.
+    # Surface points should anchor every formation at each borehole
+    # control point (9 boreholes in the enriched fixture).
     point_counts = Counter(p.formation_id for p in inputs.surface_points)
-    assert all(v == 5 for v in point_counts.values()), point_counts
+    n_boreholes = len(fixture_bundle.extraction.get("borehole_control_points", []))
+    assert n_boreholes == 9, f"Expected 9 borehole control points, got {n_boreholes}"
+    assert all(v == n_boreholes for v in point_counts.values()), point_counts
     assert {o.formation_id for o in inputs.orientations} == set(point_counts)
     # Provenance should be entirely fixture-sourced (no LLM data passed).
     assert all(p.source == "fixture" for p in inputs.surface_points)
@@ -92,16 +95,23 @@ def test_horizons_pin_formation_tops(fixture_bundle, fixture_program) -> None:
         crs=fixture_bundle.crs,
         fixture_extraction=fixture_bundle.extraction,
     )
-    horizons = fixture_bundle.extraction["depth_horizons_m"]
+    # With borehole control points, surface points should have spatially
+    # varying z values reflecting the different borehole horizons.
     schist_points = [p for p in inputs.surface_points if p.formation_id == "R_SCHIST"]
-    assert all(p.z == pytest.approx(horizons["bedrock_top"]) for p in schist_points)
-    # Top of Glacial Till is the *base of the formation above* it
-    # (outwash_base = -25 m), not till_base.
-    till_points = [p for p in inputs.surface_points if p.formation_id == "R_TILL"]
-    assert all(p.z == pytest.approx(horizons["outwash_base"]) for p in till_points)
-    # Top of the youngest formation must be the ground surface.
+    schist_zs = [p.z for p in schist_points]
+    # Bedrock top varies from -15 (Central Park) to -80 (Midtown) in the fixture.
+    assert min(schist_zs) < -70.0, f"Expected deep bedrock, got min z={min(schist_zs)}"
+    assert max(schist_zs) > -25.0, f"Expected shallow bedrock, got max z={max(schist_zs)}"
+    assert max(schist_zs) - min(schist_zs) > 40.0, "Expected significant depth variation"
+
+    # Top of the youngest formation must still be the ground surface everywhere.
     fill_points = [p for p in inputs.surface_points if p.formation_id == "R_FILL"]
-    assert all(p.z == pytest.approx(horizons["ground_surface"]) for p in fill_points)
+    assert all(p.z == pytest.approx(0.0) for p in fill_points)
+
+    # Till should also vary spatially.
+    till_points = [p for p in inputs.surface_points if p.formation_id == "R_TILL"]
+    till_zs = [p.z for p in till_points]
+    assert max(till_zs) - min(till_zs) > 10.0, "Expected spatial variation in till depths"
 
 
 def test_llm_extracted_provenance_overrides_fixture(
@@ -122,9 +132,13 @@ def test_llm_extracted_provenance_overrides_fixture(
         fixture_extraction=fixture_bundle.extraction,
     )
 
+    # With borehole control points, the bulk of surface points come from
+    # the fixture boreholes. The LLM contacts add explicit extracted
+    # points at the AOI center (one per contact).
     point_sources = Counter(p.source for p in inputs.surface_points)
-    assert point_sources["extracted"] >= 5  # 5 anchors per LLM-pinned formation
-    # The Manhattan Schist top should sit at -42 m (one of the contacts).
+    assert point_sources["extracted"] >= 1  # at least one LLM-pinned contact
+    # The Manhattan Schist should have an extracted point at -42 m
+    # (from the LLM contact).
     schist_pts = [p for p in inputs.surface_points if p.formation_id.endswith("MANHATTAN_SCHIST")]
     assert any(p.z == pytest.approx(-42.0) for p in schist_pts)
     # And there should be at least one extracted dip.

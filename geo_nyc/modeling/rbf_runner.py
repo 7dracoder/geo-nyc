@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from itertools import pairwise
 
 import numpy as np
 from scipy.interpolate import RBFInterpolator
@@ -220,7 +219,11 @@ def _enforce_stack_order(
     fixes = 0
     fixed: list[LayerMesh] = [layers[0]]
     eps = 0.05  # 5 cm clearance is plenty for visual + downstream interpolation
-    for older, younger in pairwise(layers):
+    for i in range(1, len(layers)):
+        # Compare against the *already-fixed* layer below, not the
+        # original, so corrections cascade upward through the stack.
+        older = fixed[i - 1]
+        younger = layers[i]
         floor_z = older.vertices[:, 2]
         younger_z = younger.vertices[:, 2].copy()
         violations = younger_z < (floor_z + eps)

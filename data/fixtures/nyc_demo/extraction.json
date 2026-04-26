@@ -93,5 +93,115 @@
     "bedrock_top": -55.0,
     "model_floor": -200.0
   },
-  "notes": "Hand-crafted fixture loosely modelled on the Lower Manhattan stratigraphy. Used by /api/run when GEO_NYC_USE_FIXTURES=true."
+  "borehole_control_points": [
+    {
+      "label": "BH-1 Battery Park",
+      "position": "sw",
+      "note": "Shallow bedrock near Battery Park — schist outcrops close to surface.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -4.0,
+        "outwash_base": -10.0,
+        "till_base": -18.0,
+        "bedrock_top": -18.0
+      }
+    },
+    {
+      "label": "BH-2 City Hall",
+      "position": "center_south",
+      "note": "Moderate depth — glacial deposits thicken moving north from the Battery.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -6.0,
+        "outwash_base": -20.0,
+        "till_base": -42.0,
+        "bedrock_top": -42.0
+      }
+    },
+    {
+      "label": "BH-3 Midtown West",
+      "position": "center",
+      "note": "Deep buried valley axis — bedrock drops sharply beneath thick glacial fill.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -12.0,
+        "outwash_base": -35.0,
+        "till_base": -80.0,
+        "bedrock_top": -80.0
+      }
+    },
+    {
+      "label": "BH-4 East Midtown",
+      "position": "center_east",
+      "note": "Bedrock rises toward the east side — Manhattan Schist ridge.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -5.0,
+        "outwash_base": -15.0,
+        "till_base": -30.0,
+        "bedrock_top": -30.0
+      }
+    },
+    {
+      "label": "BH-5 Upper West Side",
+      "position": "nw",
+      "note": "Moderate depth — glacial deposits thin toward Inwood.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -7.0,
+        "outwash_base": -22.0,
+        "till_base": -50.0,
+        "bedrock_top": -50.0
+      }
+    },
+    {
+      "label": "BH-6 Central Park North",
+      "position": "center_north",
+      "note": "Schist outcrops in Central Park — very shallow bedrock.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -3.0,
+        "outwash_base": -8.0,
+        "till_base": -15.0,
+        "bedrock_top": -15.0
+      }
+    },
+    {
+      "label": "BH-7 Harlem",
+      "position": "ne",
+      "note": "Shallow bedrock — Inwood Marble / Schist contact zone.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -5.0,
+        "outwash_base": -12.0,
+        "till_base": -22.0,
+        "bedrock_top": -22.0
+      }
+    },
+    {
+      "label": "BH-8 West Village",
+      "position": "sw_mid",
+      "note": "Moderate depth — transition zone between Battery shallow and Midtown deep.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -9.0,
+        "outwash_base": -28.0,
+        "till_base": -60.0,
+        "bedrock_top": -60.0
+      }
+    },
+    {
+      "label": "BH-9 Lower East Side",
+      "position": "se",
+      "note": "Moderate depth — East River proximity, thicker alluvial deposits.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -10.0,
+        "outwash_base": -30.0,
+        "till_base": -55.0,
+        "bedrock_top": -55.0
+      }
+    }
+  ],
+  "notes": "Hand-crafted fixture loosely modelled on the Lower Manhattan stratigraphy with spatially varying borehole control points reflecting real NYC bedrock topography (shallow at Battery/Harlem, deep buried valley in Midtown). Used by /api/run when GEO_NYC_USE_FIXTURES=true."
 }

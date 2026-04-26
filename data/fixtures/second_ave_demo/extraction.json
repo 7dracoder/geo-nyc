@@ -1,0 +1,207 @@
+{
+  "schema_version": "1",
+  "source": {
+    "title": "Second Avenue Subway Geotechnical Profile (fixture)",
+    "publisher": "MTA / USGS (synthetic, fixture-only)",
+    "year": 2007,
+    "fixture": true,
+    "license": "Public domain (synthetic data crafted for the geo-nyc demo)"
+  },
+  "site": {
+    "name": "Second Avenue corridor (63rd–96th St)",
+    "crs": "EPSG:32618",
+    "bbox_xy_m": {
+      "x_min": 585083.812,
+      "x_max": 586083.812,
+      "y_min": 4508834.641,
+      "y_max": 4509834.641
+    },
+    "depth_range_m": {
+      "z_min": -200.0,
+      "z_max": 0.0
+    }
+  },
+  "rocks": [
+    {
+      "id": "R_FILL",
+      "name": "Anthropogenic Fill",
+      "rock_type": "sedimentary",
+      "approximate_age": null,
+      "color_hex": "#C0B59A"
+    },
+    {
+      "id": "R_OUTWASH",
+      "name": "Glacial Outwash Sand and Gravel",
+      "rock_type": "sedimentary",
+      "approximate_age": { "value": 0.018, "unit": "Ma" },
+      "color_hex": "#D2B48C"
+    },
+    {
+      "id": "R_TILL",
+      "name": "Glacial Till",
+      "rock_type": "sedimentary",
+      "approximate_age": { "value": 0.02, "unit": "Ma" },
+      "color_hex": "#8B6F47"
+    },
+    {
+      "id": "R_SCHIST",
+      "name": "Manhattan Schist",
+      "rock_type": "metamorphic",
+      "approximate_age": { "value": 450.0, "unit": "Ma" },
+      "color_hex": "#5C4A3A"
+    }
+  ],
+  "events": [
+    {
+      "id": "D_SCHIST",
+      "kind": "deposition",
+      "rock_id": "R_SCHIST",
+      "time": { "value": 450.0, "unit": "Ma" },
+      "after": []
+    },
+    {
+      "id": "E_GLACIAL",
+      "kind": "erosion",
+      "after": ["D_SCHIST"]
+    },
+    {
+      "id": "D_TILL",
+      "kind": "deposition",
+      "rock_id": "R_TILL",
+      "time": { "value": 0.02, "unit": "Ma" },
+      "after": ["E_GLACIAL"]
+    },
+    {
+      "id": "D_OUTWASH",
+      "kind": "deposition",
+      "rock_id": "R_OUTWASH",
+      "time": { "value": 0.018, "unit": "Ma" },
+      "after": ["D_TILL"]
+    },
+    {
+      "id": "D_FILL",
+      "kind": "deposition",
+      "rock_id": "R_FILL",
+      "after": ["D_OUTWASH"]
+    }
+  ],
+  "depth_horizons_m": {
+    "ground_surface": 0.0,
+    "fill_base": -8.0,
+    "outwash_base": -25.0,
+    "till_base": -55.0,
+    "bedrock_top": -55.0,
+    "model_floor": -200.0
+  },
+  "borehole_control_points": [
+    {
+      "label": "BH-SA1 63rd St Station",
+      "position": "sw",
+      "note": "Southern end of Phase 2 — bedrock relatively shallow near Lexington line.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -6.0,
+        "outwash_base": -18.0,
+        "till_base": -35.0,
+        "bedrock_top": -35.0
+      }
+    },
+    {
+      "label": "BH-SA2 72nd St Station",
+      "position": "center_south",
+      "note": "Bedrock dips into a buried valley beneath the 70s.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -10.0,
+        "outwash_base": -30.0,
+        "till_base": -65.0,
+        "bedrock_top": -65.0
+      }
+    },
+    {
+      "label": "BH-SA3 78th St TBM",
+      "position": "center",
+      "note": "Deepest point of the buried valley — thick glacial deposits.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -14.0,
+        "outwash_base": -38.0,
+        "till_base": -85.0,
+        "bedrock_top": -85.0
+      }
+    },
+    {
+      "label": "BH-SA4 East 80th",
+      "position": "center_east",
+      "note": "Bedrock rises toward the East River — schist ridge.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -5.0,
+        "outwash_base": -14.0,
+        "till_base": -28.0,
+        "bedrock_top": -28.0
+      }
+    },
+    {
+      "label": "BH-SA5 86th St Station",
+      "position": "center_north",
+      "note": "Bedrock shallows approaching the 86th St station box.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -5.0,
+        "outwash_base": -15.0,
+        "till_base": -30.0,
+        "bedrock_top": -30.0
+      }
+    },
+    {
+      "label": "BH-SA6 96th St Station",
+      "position": "ne",
+      "note": "Northern terminus — shallow bedrock near Central Park.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -4.0,
+        "outwash_base": -10.0,
+        "till_base": -20.0,
+        "bedrock_top": -20.0
+      }
+    },
+    {
+      "label": "BH-SA7 West 70s",
+      "position": "nw",
+      "note": "West side control — moderate depth.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -8.0,
+        "outwash_base": -25.0,
+        "till_base": -50.0,
+        "bedrock_top": -50.0
+      }
+    },
+    {
+      "label": "BH-SA8 East 65th",
+      "position": "se",
+      "note": "Southeast control — moderate glacial cover.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -9.0,
+        "outwash_base": -26.0,
+        "till_base": -48.0,
+        "bedrock_top": -48.0
+      }
+    },
+    {
+      "label": "BH-SA9 West 75th",
+      "position": "sw_mid",
+      "note": "Transition zone between shallow south and deep center.",
+      "horizons": {
+        "ground_surface": 0.0,
+        "fill_base": -11.0,
+        "outwash_base": -32.0,
+        "till_base": -70.0,
+        "bedrock_top": -70.0
+      }
+    }
+  ],
+  "notes": "Hand-crafted fixture modelled on the Second Avenue Subway corridor geotechnical profile with spatially varying borehole control points. Used by /api/run when fixture_name=second_ave_demo."
+}

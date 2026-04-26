@@ -1,0 +1,10 @@
+ROCK R_FILL [ name: "Anthropogenic Fill"; type: sedimentary ]
+ROCK R_TILL [ name: "Glacial Till"; type: sedimentary; age: 0.02Ma ]
+ROCK R_OUTWASH [ name: "Glacial Outwash Sand and Gravel"; type: sedimentary; age: 0.018Ma ]
+ROCK R_SCHIST [ name: "Manhattan Schist"; type: metamorphic; age: 450Ma ]
+
+DEPOSITION D_SCHIST [ rock: R_SCHIST; time: 450Ma ]
+DEPOSITION D_TILL [ rock: R_TILL; time: 0.02Ma; after: E_GLACIAL ]
+DEPOSITION D_OUTWASH [ rock: R_OUTWASH; time: 0.018Ma; after: D_TILL ]
+DEPOSITION D_FILL [ rock: R_FILL; after: D_OUTWASH ]
+EROSION E_GLACIAL [ after: D_SCHIST ]

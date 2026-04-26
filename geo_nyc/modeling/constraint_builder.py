@@ -250,34 +250,49 @@ class ConstraintBuilder:
         if not contexts:
             return points
 
-        # 5 placement positions per formation: AOI center + 4 corner
-        # offsets at 25% inset (so we don't pile points on the bbox edge,
-        # which trips up GemPy's gradient computation).
-        positions = _aoi_positions(extent)
-
         # Pre-compute extracted evidence by canonical formation name so
         # we can attach quotes to inferred points lifted from contacts.
         contact_evidence = _contact_evidence_by_top(llm_extraction, self._glossary)
 
-        for ctx in contexts:
-            quote = contact_evidence.get(ctx.canonical)
-            # Top-of-formation surface points.
-            for label, (px, py) in positions:
-                points.append(
-                    SurfacePoint(
-                        formation_id=ctx.rock_id,
-                        x=px,
-                        y=py,
-                        z=ctx.top_z,
-                        source=ctx.source,
-                        confidence=0.9 if ctx.source == "extracted" else 0.5,
-                        evidence_quote=quote if ctx.source == "extracted" else None,
-                        note=(
-                            f"Top of {ctx.name} at {label}; "
-                            f"depth source = {ctx.source}."
-                        ),
-                    )
+        # Try spatially varying borehole control points first (rich
+        # fixture data). Each borehole carries per-formation horizon
+        # depths at a named position inside the AOI, giving the RBF
+        # interpolator real topographic variation to work with.
+        boreholes = (
+            (fixture_extraction or {}).get("borehole_control_points") or []
+        )
+        if boreholes:
+            points.extend(
+                _surface_points_from_boreholes(
+                    boreholes=boreholes,
+                    contexts=contexts,
+                    extent=extent,
+                    glossary=self._glossary,
+                    contact_evidence=contact_evidence,
                 )
+            )
+        else:
+            # Fallback: uniform-z anchors at 5 positions (legacy path).
+            positions = _aoi_positions(extent)
+            for ctx in contexts:
+                quote = contact_evidence.get(ctx.canonical)
+                for label, (px, py) in positions:
+                    points.append(
+                        SurfacePoint(
+                            formation_id=ctx.rock_id,
+                            x=px,
+                            y=py,
+                            z=ctx.top_z,
+                            source=ctx.source,
+                            confidence=0.9 if ctx.source == "extracted" else 0.5,
+                            evidence_quote=quote if ctx.source == "extracted" else None,
+                            note=(
+                                f"Top of {ctx.name} at {label}; "
+                                f"depth source = {ctx.source}."
+                            ),
+                        )
+                    )
+
         # Augment with explicit contact points from the LLM extraction
         # (location_text → AOI center is the best we can do without
         # geocoding, but we still flag them as ``extracted`` so the
@@ -557,6 +572,141 @@ def _aoi_positions(extent: ModelExtent) -> list[tuple[str, tuple[float, float]]]
         ("se", (x_hi, y_lo)),
         ("ne", (x_hi, y_hi)),
     ]
+
+
+# ---------------------------------------------------------------------------
+# Borehole control-point helpers
+# ---------------------------------------------------------------------------
+
+# Named positions → fractional (fx, fy) within the extent, where
+# (0, 0) = SW corner and (1, 1) = NE corner.  The 0.15 / 0.85 inset
+# keeps points off the bbox edge (same rationale as _aoi_positions).
+_BOREHOLE_POSITION_MAP: dict[str, tuple[float, float]] = {
+    "sw":           (0.15, 0.15),
+    "se":           (0.85, 0.15),
+    "nw":           (0.15, 0.85),
+    "ne":           (0.85, 0.85),
+    "center":       (0.50, 0.50),
+    "center_north": (0.50, 0.80),
+    "center_south": (0.50, 0.20),
+    "center_east":  (0.80, 0.50),
+    "center_west":  (0.20, 0.50),
+    "sw_mid":       (0.30, 0.35),
+    "se_mid":       (0.70, 0.35),
+    "nw_mid":       (0.30, 0.65),
+    "ne_mid":       (0.70, 0.65),
+}
+
+
+def _borehole_xy(
+    position_label: str, extent: ModelExtent
+) -> tuple[float, float]:
+    """Resolve a named borehole position to absolute (x, y) coordinates."""
+
+    fx, fy = _BOREHOLE_POSITION_MAP.get(
+        position_label.lower().strip(), (0.5, 0.5)
+    )
+    x = extent.x_min + extent.width * fx
+    y = extent.y_min + extent.height * fy
+    return (x, y)
+
+
+def _surface_points_from_boreholes(
+    *,
+    boreholes: list[dict[str, Any]],
+    contexts: list[_FormationContext],
+    extent: ModelExtent,
+    glossary: GeologyGlossary,
+    contact_evidence: dict[str, str],
+) -> list[SurfacePoint]:
+    """Generate spatially varying surface points from borehole control data.
+
+    Each borehole entry carries its own ``horizons`` dict (same keys as
+    the legacy ``depth_horizons_m``) plus a named ``position`` inside
+    the AOI. This gives the RBF interpolator real topographic variation
+    instead of flat planes.
+    """
+
+    points: list[SurfacePoint] = []
+    ctx_by_canonical = {ctx.canonical: ctx for ctx in contexts}
+
+    for bh in boreholes:
+        label = bh.get("label", "BH")
+        position = bh.get("position", "center")
+        horizons = bh.get("horizons") or {}
+        if not horizons:
+            continue
+
+        px, py = _borehole_xy(position, extent)
+
+        for ctx in contexts:
+            # Resolve the top-of-formation z from this borehole's
+            # horizons, using the same logic as _top_horizon_for but
+            # applied per-borehole.
+            z = _borehole_top_z_for_formation(ctx, contexts, horizons)
+            if z is None:
+                # Fall back to the formation's global top_z.
+                z = ctx.top_z
+
+            z = max(extent.z_min, min(z, extent.z_max))
+            quote = contact_evidence.get(ctx.canonical)
+            points.append(
+                SurfacePoint(
+                    formation_id=ctx.rock_id,
+                    x=px,
+                    y=py,
+                    z=z,
+                    source="fixture",
+                    confidence=0.7,
+                    evidence_quote=quote,
+                    note=(
+                        f"Top of {ctx.name} at {label} ({position}); "
+                        f"depth source = borehole fixture."
+                    ),
+                )
+            )
+    return points
+
+
+def _borehole_top_z_for_formation(
+    ctx: _FormationContext,
+    all_contexts: list[_FormationContext],
+    horizons: dict[str, Any],
+) -> float | None:
+    """Pick the top-of-formation z from a single borehole's horizon dict.
+
+    Uses the same naming convention as the legacy ``depth_horizons_m``:
+    the *top* of formation X is the *base* of the formation above it,
+    except for bedrock which has its own ``bedrock_top`` key, and the
+    youngest formation which sits at ``ground_surface``.
+    """
+
+    canonical_lower = ctx.canonical.lower()
+
+    # Special-case: bedrock has its own key.
+    horizon_key = _FIXTURE_HORIZON_KEYS_BY_NAME.get(canonical_lower)
+    if horizon_key == "bedrock_top" and horizon_key in horizons:
+        return float(horizons[horizon_key])
+
+    # Topmost (youngest) formation → ground surface.
+    max_order = max(c.stratigraphic_order for c in all_contexts)
+    if ctx.stratigraphic_order == max_order:
+        if "ground_surface" in horizons:
+            return float(horizons["ground_surface"])
+        return 0.0
+
+    # All other formations: top-of-X = base-of-formation-above-X.
+    above = None
+    for c in all_contexts:
+        if c.stratigraphic_order == ctx.stratigraphic_order + 1:
+            above = c
+            break
+    if above is not None:
+        above_key = _FIXTURE_HORIZON_KEYS_BY_NAME.get(above.canonical.lower())
+        if above_key and above_key in horizons:
+            return float(horizons[above_key])
+
+    return None
 
 
 def _contact_evidence_by_top(

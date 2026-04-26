@@ -57,11 +57,17 @@ def test_runner_respects_fixture_horizon_depths(
     result = RBFRunner(RBFRunnerConfig(grid_nx=16, grid_ny=16)).run(fixture_inputs)
     rock_to_layer = {layer.surface_id: layer for layer in result.layers}
 
-    # Bedrock top should still hover near -55 across the grid.
+    # Bedrock top should have significant spatial variation (shallow at
+    # edges, deep in the middle) — the enriched fixture has bedrock
+    # ranging from -15 m to -80 m across the AOI.
     schist = rock_to_layer["S_R_SCHIST"]
-    assert schist.vertices[:, 2].mean() == pytest.approx(-55.0, abs=0.5)
+    schist_z = schist.vertices[:, 2]
+    z_range = float(schist_z.max() - schist_z.min())
+    assert z_range > 20.0, f"Expected significant bedrock relief, got range={z_range:.1f} m"
+    # Mean should be somewhere in the middle of the fixture range.
+    assert -70.0 < schist_z.mean() < -20.0
 
-    # Ground surface (top-of-fill) should be near 0.
+    # Ground surface (top-of-fill) should still be near 0.
     fill = rock_to_layer["S_R_FILL"]
     assert fill.vertices[:, 2].mean() == pytest.approx(0.0, abs=0.5)
 
