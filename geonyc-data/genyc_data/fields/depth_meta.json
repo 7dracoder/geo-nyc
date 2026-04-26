@@ -1,0 +1,14 @@
+{
+  "crs": "EPSG:4326",
+  "bbox": [
+    -74.08,
+    40.56,
+    -73.77,
+    40.93
+  ],
+  "resolution_m": 50,
+  "units": "meters_below_surface",
+  "source": "gempy",
+  "generated_at": "2026-04-26T19:05:25.221410+00:00",
+  "method": "geo-lm gempy model -> mesh vertices -> depth interpolation"
+}

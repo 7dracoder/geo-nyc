@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+numpy
+scipy
+matplotlib
+requests
+geopandas
+pyproj
+shapely
