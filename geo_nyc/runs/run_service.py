@@ -46,7 +46,7 @@ from geo_nyc.extraction.structured import LLMExtraction
 from geo_nyc.logging import get_logger
 from geo_nyc.modeling.constraint_builder import ConstraintBuilder
 from geo_nyc.modeling.constraints import GemPyInputs, GridResolution3D
-from geo_nyc.modeling.extent import GridResolution
+from geo_nyc.modeling.extent import GridResolution, ModelExtent
 from geo_nyc.modeling.field_builder import (
     build_depth_to_bedrock_field_from_inputs,
     build_stub_depth_field,
@@ -66,7 +66,7 @@ from geo_nyc.parsers.dsl import parse_and_validate
 from geo_nyc.parsers.dsl.ast import Program
 from geo_nyc.parsers.dsl.builder import build_dsl_from_extraction
 from geo_nyc.parsers.dsl.validator import ValidationReport
-from geo_nyc.runs.fixtures import load_fixture_bundle
+from geo_nyc.runs.fixtures import FixtureBundle, load_fixture_bundle
 from geo_nyc.runs.manifest import (
     Artifact,
     RunManifest,
@@ -78,6 +78,33 @@ from geo_nyc.runs.manifest import (
 
 _LOG = get_logger(__name__)
 _DEFAULT_FIXTURE = "nyc_demo"
+_SITE_HALF_SIZE_M = 500.0  # 1 km × 1 km site box
+
+
+def _extent_from_lnglat(
+    lng: float, lat: float, *, half_m: float = _SITE_HALF_SIZE_M
+) -> tuple[ModelExtent, str]:
+    """Build a 1 km × 1 km :class:`ModelExtent` centred on ``(lng, lat)``.
+
+    Converts WGS-84 to UTM 18N (EPSG:32618) — the project-wide
+    projected CRS — then pads ±500 m in each direction.
+    """
+
+    from pyproj import Transformer
+
+    to_utm = Transformer.from_crs("EPSG:4326", "EPSG:32618", always_xy=True)
+    cx, cy = to_utm.transform(lng, lat)
+    return (
+        ModelExtent(
+            x_min=cx - half_m,
+            x_max=cx + half_m,
+            y_min=cy - half_m,
+            y_max=cy + half_m,
+            z_min=-200.0,
+            z_max=0.0,
+        ),
+        "EPSG:32618",
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -303,6 +330,24 @@ class RunService:
                             mode = "document_llm_dsl"
 
             bundle = load_fixture_bundle(self._settings.fixtures_dir, fixture_name)
+
+            # Override the fixture extent when the request carries a
+            # click location so the model is centred on that point.
+            center_lng = (request_payload or {}).get("center_lng")
+            center_lat = (request_payload or {}).get("center_lat")
+            if center_lng is not None and center_lat is not None:
+                site_extent, site_crs = _extent_from_lnglat(
+                    float(center_lng), float(center_lat)
+                )
+                # Swap the extent on the bundle (it's a frozen dataclass,
+                # so we rebuild it).
+                bundle = FixtureBundle(
+                    name=bundle.name,
+                    extraction=bundle.extraction,
+                    dsl_text=bundle.dsl_text,
+                    extent=site_extent,
+                    crs=site_crs,
+                )
 
             # Pick the canonical DSL + Program for the rest of the pipeline.
             # Prefer the LLM-derived DSL when it parsed + validated; the

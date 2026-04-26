@@ -20,6 +20,68 @@ function shouldMock(): boolean {
   return new URLSearchParams(window.location.search).get("mock") === "1";
 }
 
+// --- Run API -------------------------------------------------------------
+
+export type RunManifestArtifact = {
+  kind: string;
+  filename: string;
+  url: string;
+  bytes: number;
+  metadata?: Record<string, unknown>;
+};
+
+export type RunManifest = {
+  run_id: string;
+  status: string;
+  mode: string;
+  artifacts: RunManifestArtifact[];
+  mesh_summary?: Record<string, unknown>;
+  field_summary?: Record<string, unknown>;
+};
+
+/**
+ * Trigger a new run centred on the given WGS-84 coordinates.
+ * Returns the full manifest including the mesh artifact URL.
+ */
+export async function createRun(lng: number, lat: number): Promise<RunManifest> {
+  const base = apiBase();
+  if (!base) throw new Error("API base URL not configured");
+
+  const res = await fetch(`${base}/api/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "1",
+    },
+    body: JSON.stringify({ center_lng: lng, center_lat: lat }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Run failed (${res.status})`);
+  }
+
+  return (await res.json()) as RunManifest;
+}
+
+/**
+ * Convert a backend-stamped absolute mesh URL to a same-origin proxy path
+ * so the browser can fetch it without CORS issues.
+ */
+export function proxiedMeshUrl(backendUrl: string): string {
+  const base = apiBase();
+  if (!base || !backendUrl) return backendUrl;
+  if (backendUrl.startsWith("/")) return `${base}${backendUrl}`;
+  try {
+    const u = new URL(backendUrl);
+    return `${base}${u.pathname}`;
+  } catch {
+    return backendUrl;
+  }
+}
+
+// --- Optimize API --------------------------------------------------------
+
 function mockOptimize(body: OptimizeRequest): OptimizeResponse {
   const mid = (body.params.d_min + body.params.d_max) / 2;
   const bias = body.mode === "tunnel" ? 2 : 0;

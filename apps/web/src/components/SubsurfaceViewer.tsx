@@ -7,18 +7,19 @@ import {
   type ErrorInfo,
   type ReactNode,
   Suspense,
+  useCallback,
+  useEffect,
   useMemo,
+  useRef,
+  useState,
 } from "react";
 import * as THREE from "three";
-import { Box, X } from "lucide-react";
+import { Box, Loader2, X } from "lucide-react";
+import { createRun, proxiedMeshUrl } from "@/lib/api";
 import type { MapPickLocation } from "@/types/map-pick";
 
-/**
- * Static GLB path — served from public/exports/sample.glb.
- * No async resolution, no network probes, no WebGL context churn.
- * To update the model, replace the file and redeploy.
- */
-const MODEL_URL = "/exports/sample.glb";
+/** Fallback GLB when no run has been triggered yet. */
+const DEFAULT_MODEL_URL = "/exports/sample.glb";
 
 const PALETTE = [
   "#5C4A3A",
@@ -31,6 +32,8 @@ const PALETTE = [
   "#b8a98a",
 ];
 
+const Z_EXAGGERATION = 8;
+
 function PlaceholderBlock() {
   return (
     <mesh>
@@ -40,28 +43,6 @@ function PlaceholderBlock() {
   );
 }
 
-/**
- * Vertical exaggeration factor for geological visualization.
- * Standard practice in subsurface viz — without this, an 80m depth
- * range across a 1000m footprint looks completely flat (8% aspect ratio).
- * 8x makes the buried valley clearly visible while keeping the model
- * recognisable as terrain.
- */
-const Z_EXAGGERATION = 8;
-
-/**
- * Cheap, robust GLB rendering for the dock:
- *   - Compute vertex normals when missing (else lit materials render black).
- *   - Force DoubleSide so inconsistent winding doesn't hide layers.
- *   - Convert every material to `MeshLambertMaterial`. Lambert is the cheapest
- *     lit material in three.js: no PBR, no IBL, no PMREM cubemap allocation —
- *     which is the difference between "WebGL context lost" and a solid render
- *     when MapLibre is already eating one WebGL context on the page.
- *   - Apply vertical exaggeration so subsurface depth variation is visible.
- *   - If the source baseColor is missing or near-black, swap in a per-mesh
- *     palette color so layers are always visible.
- *   - No shadows.
- */
 function GlbModel({ url }: { url: string }) {
   const gltf = useGLTF(url);
   const root = useMemo(() => {
@@ -85,9 +66,10 @@ function GlbModel({ url }: { url: string }) {
         (o.material as THREE.MeshStandardMaterial).color instanceof THREE.Color
           ? (o.material as THREE.MeshStandardMaterial).color.clone()
           : null;
-      const useColor = sourceColor && sourceColor.r + sourceColor.g + sourceColor.b > 0.15
-        ? sourceColor
-        : new THREE.Color(fallback);
+      const useColor =
+        sourceColor && sourceColor.r + sourceColor.g + sourceColor.b > 0.15
+          ? sourceColor
+          : new THREE.Color(fallback);
 
       const cheap = new THREE.MeshLambertMaterial({
         color: useColor,
@@ -102,12 +84,7 @@ function GlbModel({ url }: { url: string }) {
       o.material = cheap;
     });
 
-    // Apply vertical exaggeration before fitting to view box.
-    // The mesh Z axis carries depth in projected metres; stretching it
-    // makes the buried-valley topography clearly visible.
     g.scale.set(1, 1, Z_EXAGGERATION);
-
-    // Now fit the exaggerated scene into the view cube.
     const box = new THREE.Box3().setFromObject(g);
     if (!box.isEmpty()) {
       const size = box.getSize(new THREE.Vector3());
@@ -119,7 +96,6 @@ function GlbModel({ url }: { url: string }) {
       g.position.sub(c);
     }
 
-    // Recompute normals after scaling so lighting is correct.
     g.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         const geom = o.geometry as THREE.BufferGeometry | undefined;
@@ -134,7 +110,6 @@ function GlbModel({ url }: { url: string }) {
 }
 
 type GlbBoundaryProps = { children: ReactNode };
-
 type GlbBoundaryState = { hasError: boolean };
 
 class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
@@ -142,21 +117,16 @@ class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
     super(props);
     this.state = { hasError: false };
   }
-
   static getDerivedStateFromError(): GlbBoundaryState {
     return { hasError: true };
   }
-
   componentDidCatch(error: Error, _info: ErrorInfo) {
     if (typeof window !== "undefined") {
       console.warn("[geo-nyc] GLB render failed; showing placeholder:", error);
     }
   }
-
   render() {
-    if (this.state.hasError) {
-      return <PlaceholderBlock />;
-    }
+    if (this.state.hasError) return <PlaceholderBlock />;
     return this.props.children;
   }
 }
@@ -174,7 +144,12 @@ function SceneBody({ modelUrl }: { modelUrl: string }) {
           <GlbModel url={modelUrl} />
         </Suspense>
       </GlbErrorBoundary>
-      <OrbitControls makeDefault enablePan minPolarAngle={0.35} maxPolarAngle={Math.PI - 0.35} />
+      <OrbitControls
+        makeDefault
+        enablePan
+        minPolarAngle={0.35}
+        maxPolarAngle={Math.PI - 0.35}
+      />
     </>
   );
 }
@@ -185,33 +160,96 @@ type SubsurfaceViewerProps = {
 };
 
 export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
+  const [modelUrl, setModelUrl] = useState(DEFAULT_MODEL_URL);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // When the user clicks a new location, fire a run and swap the mesh.
+  useEffect(() => {
+    if (!pick) return;
+
+    // Cancel any in-flight run.
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    createRun(pick.lng, pick.lat)
+      .then((manifest) => {
+        if (cancelled) return;
+        const mesh = manifest.artifacts.find(
+          (a) => a.kind === "mesh" && a.filename.endsWith(".glb"),
+        );
+        if (mesh?.url) {
+          const url = proxiedMeshUrl(mesh.url);
+          // Invalidate drei's GLB cache so the new mesh is fetched.
+          useGLTF.clear(url);
+          setModelUrl(url);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("[geo-nyc] run failed:", err);
+        setError("Model generation failed");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+    };
+  }, [pick?.lng, pick?.lat]);
+
+  const onClear = useCallback(() => {
+    abortRef.current?.abort();
+    setModelUrl(DEFAULT_MODEL_URL);
+    setError(null);
+    setLoading(false);
+    onClearPick?.();
+  }, [onClearPick]);
+
   return (
     <div className="subsurface-dock">
-      <div
-        className="subsurface-panel"
-        role="region"
-        aria-label="3D preview"
-      >
+      <div className="subsurface-panel" role="region" aria-label="3D preview">
         <div className="flex min-w-0 shrink-0 items-center gap-2 border-b border-line px-2.5 py-1.5">
-          <Box className="h-3.5 w-3.5 shrink-0 text-muted" strokeWidth={1.75} aria-hidden />
+          <Box
+            className="h-3.5 w-3.5 shrink-0 text-muted"
+            strokeWidth={1.75}
+            aria-hidden
+          />
           <div className="min-w-0 flex-1">
-            <span className="block text-xs font-semibold text-ink sm:text-sm">3D</span>
+            <span className="block text-xs font-semibold text-ink sm:text-sm">
+              3D
+            </span>
             {pick ? (
               <span className="mt-0.5 block font-mono text-[10px] leading-tight text-muted sm:text-xs">
                 {pick.lng.toFixed(4)}°, {pick.lat.toFixed(4)}°
               </span>
             ) : (
               <span className="mt-0.5 block text-[10px] leading-tight text-muted sm:text-xs">
-                Map pick
+                Click the map
               </span>
             )}
           </div>
-          {pick && onClearPick ? (
+          {loading && (
+            <Loader2
+              className="h-3.5 w-3.5 shrink-0 animate-spin text-muted"
+              strokeWidth={2}
+              aria-label="Generating model…"
+            />
+          )}
+          {pick && !loading ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onClearPick();
+                onClear();
               }}
               className="shrink-0 rounded p-1 text-muted hover:bg-stone-100 hover:text-ink"
               aria-label="Clear"
@@ -221,24 +259,31 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
           ) : null}
         </div>
         <div className="subsurface-canvas-wrap">
-          <Canvas
-            className="!h-full !w-full touch-none"
-            style={{ width: "100%", height: "100%" }}
-            camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
-            frameloop="demand"
-            gl={{
-              antialias: false,
-              alpha: false,
-              powerPreference: "low-power",
-              toneMapping: THREE.NoToneMapping,
-              outputColorSpace: THREE.SRGBColorSpace,
-              preserveDrawingBuffer: false,
-              failIfMajorPerformanceCaveat: false,
-            }}
-            dpr={1}
-          >
-            <SceneBody modelUrl={MODEL_URL} />
-          </Canvas>
+          {error ? (
+            <div className="flex h-full w-full items-center justify-center bg-[#f0ede8] text-[11px] text-red-500">
+              {error}
+            </div>
+          ) : (
+            <Canvas
+              key={modelUrl}
+              className="!h-full !w-full touch-none"
+              style={{ width: "100%", height: "100%" }}
+              camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
+              frameloop="demand"
+              gl={{
+                antialias: false,
+                alpha: false,
+                powerPreference: "low-power",
+                toneMapping: THREE.NoToneMapping,
+                outputColorSpace: THREE.SRGBColorSpace,
+                preserveDrawingBuffer: false,
+                failIfMajorPerformanceCaveat: false,
+              }}
+              dpr={1}
+            >
+              <SceneBody modelUrl={modelUrl} />
+            </Canvas>
+          )}
         </div>
       </div>
     </div>

@@ -90,6 +90,19 @@ class RunRequest(BaseModel):
         le=32,
         description="Optional override for the number of top-ranked chunks fed to the LLM.",
     )
+    center_lng: float | None = Field(
+        default=None,
+        ge=-180.0,
+        le=180.0,
+        description="Longitude (WGS84) of the click location. When provided with center_lat, "
+        "the run builds a 1 km × 1 km model extent centred on this point.",
+    )
+    center_lat: float | None = Field(
+        default=None,
+        ge=-90.0,
+        le=90.0,
+        description="Latitude (WGS84) of the click location.",
+    )
 
 
 class RunListResponse(BaseModel):
