@@ -1,6 +1,6 @@
 "use client";
 
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import {
   Component,
@@ -16,31 +16,85 @@ import { Box, X } from "lucide-react";
 import { resolveGltfUrl } from "@/lib/gltfAsset";
 import type { MapPickLocation } from "@/types/map-pick";
 
+const PALETTE = [
+  "#f59e0b",
+  "#84cc16",
+  "#22c55e",
+  "#06b6d4",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#ef4444",
+];
+
 function PlaceholderBlock() {
   return (
-    <mesh castShadow receiveShadow>
+    <mesh>
       <boxGeometry args={[1.15, 0.75, 1.15]} />
       <meshStandardMaterial color="#78716c" roughness={0.45} metalness={0.08} />
     </mesh>
   );
 }
 
+/**
+ * Defensive cleanup of GLBs coming out of the geo-nyc mesh exporter:
+ *   - Compute vertex normals when missing (otherwise PBR materials render black).
+ *   - Force `DoubleSide` so inconsistent winding doesn't hide layers.
+ *   - Clamp metalness/roughness to sane values; brighten near-black baseColor so
+ *     a layer that was emitted with `0x000000` is still visible.
+ *   - Assign a per-mesh fallback color from PALETTE when material is undefined.
+ *   - Drop shadow casting/receiving — the dock's shadow budget is the main
+ *     reason WebGL contexts get lost on Vercel iframes alongside MapLibre.
+ */
 function GlbModel({ url }: { url: string }) {
   const gltf = useGLTF(url);
   const root = useMemo(() => {
-    const g = gltf.scene.clone();
+    const g = gltf.scene.clone(true);
+    let meshIndex = 0;
     g.traverse((o) => {
-      if (o instanceof THREE.Mesh) {
-        o.castShadow = true;
-        o.receiveShadow = true;
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const mat of mats) {
-          if (mat instanceof THREE.MeshStandardMaterial) {
-            mat.toneMapped = true;
+      if (!(o instanceof THREE.Mesh)) return;
+      o.castShadow = false;
+      o.receiveShadow = false;
+      const geom = o.geometry as THREE.BufferGeometry | undefined;
+      if (geom && !geom.attributes.normal) {
+        geom.computeVertexNormals();
+      }
+      const fallbackColor = PALETTE[meshIndex % PALETTE.length];
+      meshIndex += 1;
+      const ensureMaterial = (mat: THREE.Material | null | undefined): THREE.Material => {
+        if (!mat) {
+          return new THREE.MeshStandardMaterial({
+            color: fallbackColor,
+            roughness: 0.7,
+            metalness: 0.05,
+            side: THREE.DoubleSide,
+            flatShading: false,
+          });
+        }
+        mat.side = THREE.DoubleSide;
+        if (mat instanceof THREE.MeshStandardMaterial) {
+          mat.toneMapped = true;
+          mat.metalness = Math.min(mat.metalness ?? 0.0, 0.25);
+          mat.roughness = Math.max(mat.roughness ?? 0.5, 0.55);
+          if (mat.color && mat.color.r + mat.color.g + mat.color.b < 0.15) {
+            mat.color.set(fallbackColor);
           }
         }
+        if ("color" in mat && mat.color instanceof THREE.Color) {
+          if (mat.color.r + mat.color.g + mat.color.b < 0.15) {
+            mat.color.set(fallbackColor);
+          }
+        }
+        mat.needsUpdate = true;
+        return mat;
+      };
+      if (Array.isArray(o.material)) {
+        o.material = o.material.map((m) => ensureMaterial(m));
+      } else {
+        o.material = ensureMaterial(o.material as THREE.Material | null | undefined);
       }
     });
+
     const box = new THREE.Box3().setFromObject(g);
     if (!box.isEmpty()) {
       const size = box.getSize(new THREE.Vector3());
@@ -70,7 +124,11 @@ class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {}
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    if (typeof window !== "undefined") {
+      console.warn("[geo-nyc] GLB render failed; showing placeholder:", error);
+    }
+  }
 
   render() {
     if (this.state.hasError) {
@@ -84,9 +142,11 @@ function SceneBody({ modelUrl }: { modelUrl: string }) {
   return (
     <>
       <color attach="background" args={["#f0ede8"]} />
-      <ambientLight intensity={0.9} />
-      <directionalLight position={[5, 8, 4]} intensity={1.05} castShadow />
+      <ambientLight intensity={0.55} />
+      <hemisphereLight args={["#ffffff", "#9ca3af", 0.65]} />
+      <directionalLight position={[5, 8, 4]} intensity={1.0} />
       <directionalLight position={[-4, 3, -2]} intensity={0.35} />
+      <Environment preset="city" />
       <GlbErrorBoundary>
         <Suspense fallback={<PlaceholderBlock />}>
           <GlbModel url={modelUrl} />
@@ -158,15 +218,24 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
               className="!h-full !w-full touch-none"
               style={{ width: "100%", height: "100%" }}
               camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
-              shadows
+              frameloop="demand"
               gl={{
                 antialias: true,
                 alpha: false,
-                powerPreference: "high-performance",
+                powerPreference: "default",
                 toneMapping: THREE.ACESFilmicToneMapping,
                 outputColorSpace: THREE.SRGBColorSpace,
+                preserveDrawingBuffer: false,
+                failIfMajorPerformanceCaveat: false,
               }}
-              dpr={[1, 2]}
+              dpr={[1, 1.5]}
+              onCreated={({ gl }) => {
+                const canvas = gl.domElement;
+                canvas.addEventListener("webglcontextlost", (e) => {
+                  e.preventDefault();
+                  console.warn("[geo-nyc] WebGL context lost in subsurface dock");
+                });
+              }}
             >
               <SceneBody modelUrl={modelUrl} />
             </Canvas>
