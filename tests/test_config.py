@@ -7,11 +7,29 @@ import pytest
 from geo_nyc.config import Settings, get_settings, reset_settings_cache
 
 
-def test_defaults_are_local_only(isolated_settings: Settings) -> None:
+def test_default_provider_is_groq(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Groq (cloud Llama) is the default. Local Ollama is opt-in via
+    GEO_NYC_LLM_PROVIDER=ollama for offline/air-gapped runs.
+
+    The shared `isolated_settings` fixture pins to ollama so the test
+    suite doesn't need a real Groq key; this test bypasses it to assert
+    the *production* default.
+    """
+
+    for key in (
+        "GEO_NYC_LLM_PROVIDER",
+        "GEO_NYC_GROQ_API_KEY",
+        "GEO_NYC_GROQ_MODEL",
+        "GEO_NYC_GROQ_BASE_URL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+    reset_settings_cache()
     settings = get_settings()
-    assert settings.llm_provider == "ollama"
-    assert settings.ollama_base_url.startswith("http://")
-    assert settings.cors_origin_list  # non-empty
+    assert settings.llm_provider == "groq"
+    assert settings.groq_base_url.startswith("https://")
+    assert settings.groq_model.startswith("llama")
+    assert settings.cors_origin_list
+    reset_settings_cache()
 
 
 def test_default_cors_includes_vercel_prod_and_localhost(

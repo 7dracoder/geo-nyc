@@ -6,10 +6,18 @@ const KHRONOS_DUCK_GLTF =
 
 const LOCAL_GLB = "/exports/sample.glb";
 
+export type RunSurfaceMeta = {
+  surface_id: string;
+  name: string;
+  rock_type?: string;
+  color_hex?: string;
+};
+
 type ArtifactJson = {
   kind?: string;
   filename?: string;
   url?: string;
+  metadata?: Record<string, unknown>;
 };
 
 type RunManifestJson = {
@@ -24,13 +32,25 @@ type RunListJson = {
   items?: RunManifestJson[];
 };
 
+export type RunResolution = {
+  url: string;
+  runId?: string;
+  mode?: string;
+  surfaces: RunSurfaceMeta[];
+  source: string;
+};
+
 /**
- * Higher = more interesting. Picks PDF-driven runs (DSL → GemPy from
- * the 3 source PDFs) ahead of fixture runs so the dock shows real data
- * once the operator has run `make seed-runs`.
+ * Higher = more interesting. Picks operator-supplied / PDF-driven runs
+ * ahead of fixture runs so the dock shows real data once the user has
+ * built one from the dock or the operator has run `make seed-runs`.
+ *
+ * When a build kicked off from the dock pins `currentRunId` directly,
+ * this priority list is bypassed entirely (see {@link resolveGltfUrl}).
  */
 function priorityForMode(mode: string | undefined): number {
   const m = (mode ?? "").toLowerCase();
+  if (m.includes("inline_dsl")) return 5;
   if (m.includes("document_llm_dsl")) return 4;
   if (m.includes("document_llm")) return 3;
   if (m.includes("document_chunks")) return 2;
@@ -121,6 +141,27 @@ function pickMeshArtifact(manifest: RunManifestJson): ArtifactJson | undefined {
   });
 }
 
+function surfacesFromManifest(manifest: RunManifestJson): RunSurfaceMeta[] {
+  const mesh = pickMeshArtifact(manifest);
+  const raw = mesh?.metadata?.surfaces;
+  if (!Array.isArray(raw)) return [];
+  const out: RunSurfaceMeta[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const id = typeof o.surface_id === "string" ? o.surface_id : null;
+    const name = typeof o.name === "string" ? o.name : id;
+    if (!id || !name) continue;
+    out.push({
+      surface_id: id,
+      name,
+      rock_type: typeof o.rock_type === "string" ? o.rock_type : undefined,
+      color_hex: typeof o.color_hex === "string" ? o.color_hex : undefined,
+    });
+  }
+  return out;
+}
+
 async function meshUrlFromManifest(base: string, manifest: RunManifestJson): Promise<string | null> {
   const mesh = pickMeshArtifact(manifest);
   const runId = manifest.run_id;
@@ -144,7 +185,44 @@ async function meshUrlFromConfiguredRunId(base: string, runId: string): Promise<
   return meshUrlFromManifest(base, manifest);
 }
 
+/**
+ * Fetch a *specific* run's manifest + GLB. Used right after the dock
+ * builds a new run from operator DSL / file upload — we want to display
+ * exactly that run, not whatever wins the latest-run priority sort.
+ */
+export async function resolveRunById(runId: string): Promise<RunResolution | null> {
+  const base = typeof window !== "undefined" ? apiBase() : "";
+  if (!base) return null;
+  const manifest = await fetchJsonNoHtml<RunManifestJson>(
+    `${base}/api/run/${encodeURIComponent(runId)}`,
+  );
+  if (!manifest) return null;
+  const url = await meshUrlFromManifest(base, manifest);
+  if (!url) return null;
+  return {
+    url,
+    runId: manifest.run_id,
+    mode: manifest.mode,
+    surfaces: surfacesFromManifest(manifest),
+    source: `pinned run (${manifest.mode ?? "?"}, ${manifest.run_id ?? "?"})`,
+  };
+}
+
 type LatestPick = { url: string; manifest: RunManifestJson };
+
+function manifestToResolution(
+  url: string,
+  manifest: RunManifestJson,
+  source: string,
+): RunResolution {
+  return {
+    url,
+    runId: manifest.run_id,
+    mode: manifest.mode,
+    surfaces: surfacesFromManifest(manifest),
+    source,
+  };
+}
 
 async function meshUrlFromLatestRun(base: string): Promise<LatestPick | null> {
   const body = await fetchJsonNoHtml<RunListJson>(`${base}/api/runs?limit=40`);

@@ -7,6 +7,7 @@ importing optional dependencies eagerly.
 from __future__ import annotations
 
 from geo_nyc.ai.providers.base import BaseLLMProvider, LLMResponse
+from geo_nyc.ai.providers.groq import GroqProvider
 from geo_nyc.ai.providers.ollama import OllamaProvider
 
-__all__ = ["BaseLLMProvider", "LLMResponse", "OllamaProvider"]
+__all__ = ["BaseLLMProvider", "GroqProvider", "LLMResponse", "OllamaProvider"]

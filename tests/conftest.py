@@ -33,7 +33,12 @@ def isolated_settings(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterat
         "GEO_NYC_CACHE_DIR": str(tmp_path / "data/cache"),
         "GEO_NYC_USE_FIXTURES": "true",
         "GEO_NYC_ENABLE_GEMPY": "false",
+        # Tests pin to ollama because most LLM-touching tests stub the
+        # provider; using the real groq default would require a key on
+        # CI. Production defaults to groq via geo_nyc/config.py.
+        "GEO_NYC_LLM_PROVIDER": "ollama",
         "GEO_NYC_OLLAMA_BASE_URL": "http://localhost:11434",
+        "GEO_NYC_GROQ_API_KEY": "test-key-not-real",
         "GEO_NYC_PUBLIC_BASE_URL": "http://localhost:8000",
         "GEO_NYC_LOG_LEVEL": "WARNING",
     }

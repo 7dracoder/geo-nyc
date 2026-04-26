@@ -2,7 +2,7 @@
 
 These are the first integration point for the frontend and the demo
 operator. ``/api/health`` is liveness; ``/api/llm/health`` is the LLM
-backend readiness probe (Ollama).
+backend readiness probe (Groq by default, or Ollama when configured).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ async def get_health() -> HealthResponse:
     )
 
 
-@router.get("/llm/health", response_model=LLMHealthResponse, summary="LLM (Ollama) readiness")
+@router.get("/llm/health", response_model=LLMHealthResponse, summary="LLM provider readiness")
 async def get_llm_health() -> LLMHealthResponse:
     provider = get_default_provider()
     snapshot = await provider.health_check()
