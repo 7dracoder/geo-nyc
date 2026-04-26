@@ -53,7 +53,8 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 
 - Client-only R3F canvas in a bottom dock; hover expands the panel (see `src/app/globals.css` `.subsurface-*`).
-- **Model URL** (`resolveGltfUrl` in `src/lib/gltfAsset.ts`): `NEXT_PUBLIC_GLTF_URL` if set → else `GET /geo-nyc-proxy/static/exports/sample.glb` when the API proxy is configured → else `public/exports/sample.glb` if it returns 200 → else the **Khronos glTF Duck** (remote, standard binary) so the viewer always has real geometry. Tone mapping / color space are set on the WebGL renderer; meshes are auto-scaled to a consistent size.
+- **Model URL** (`resolveGltfUrl` in `src/lib/gltfAsset.ts`): order is `NEXT_PUBLIC_GLTF_URL` (full override) → optional **`NEXT_PUBLIC_MESH_RUN_ID`** plus `GET /geo-nyc-proxy/api/run/{id}` to resolve the run’s mesh → else newest runs from `GET /geo-nyc-proxy/api/runs` (prefers `status: succeeded`) probing **`/geo-nyc-proxy/static/exports/{run_id}/model.glb`** (or the mesh filename from the manifest) → legacy `static/exports/sample.glb` → `public/exports/sample.glb` → **Khronos Duck** so the dock always has geometry.
+- **DSL vs GemPy:** the subsurface **`.glb`** is produced by the Python run pipeline’s mesh export step (same artifact path regardless of engine). **GemPy** is optional on the API host (`GEO_NYC_ENABLE_GEMPY`); without it the backend may still emit a mesh from RBF / synthetic / stub paths. The web app does not call GemPy directly; it only loads whatever mesh URL the run manifest describes (proxied through `/geo-nyc-proxy`).
 
 ## Layout and styling
 
@@ -67,7 +68,10 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 |----------|---------|
 | `NEXT_PUBLIC_API_BASE_URL` | Upstream FastAPI origin (`https://…`, optional trailing slash). Used at **build** time for `next.config.ts` rewrites from `/geo-nyc-proxy/*` to this host. Invalid or host-less values are ignored (avoids Vercel `DNS_HOSTNAME_EMPTY` from bad rewrites). If empty or invalid, what-if uses the mock and overlays use only `public/layers/manifest.json`. |
 
-| `NEXT_PUBLIC_GLTF_URL` | Optional full URL to a `.glb` for the 3D dock. When unset, the app probes local/proxy paths then falls back to the Khronos sample duck. |
+| `NEXT_PUBLIC_GLTF_URL` | Optional full URL to a `.glb` for the 3D dock. Highest priority when set. |
+| `NEXT_PUBLIC_MESH_RUN_ID` | Optional run id (e.g. `r_20260101000000_abcdef12`). When set and `NEXT_PUBLIC_API_BASE_URL` is valid, the dock loads that run’s mesh from the API manifest instead of guessing from `/api/runs`. |
+
+When neither override is set but the API proxy is configured, the app picks the newest run that still has a mesh file, then falls back to sample paths and the Khronos duck.
 
 The Python API does not need to list your Vercel domain in CORS for these calls (traffic is Vercel → upstream). CORS on the backend still matters for other clients that hit ngrok directly from the browser.
 
