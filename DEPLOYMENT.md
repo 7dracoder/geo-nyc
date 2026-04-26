@@ -24,18 +24,32 @@ Blueprint apply spins up the whole stack.
 1. **Push the repo to GitHub** (already done — `7dracoder/geo-nyc`).
 2. Go to <https://dashboard.render.com/iacs> →
    **New** → **Blueprint** → pick `7dracoder/geo-nyc`.
-3. Render reads `render.yaml` and shows the two services it's about to
-   create: **`geo-nyc-api`** and **`geo-nyc-web`**.
-4. Click **Apply**. Render will prompt for the one secret env var:
+3. Render reads `render.yaml` and shows what it's about to create:
+   * Two web services: **`geo-nyc-api`** and **`geo-nyc-web`**.
+   * One env group: **`geo-nyc-secrets`** (empty — for your Groq key).
+4. Click **Apply**. Render finishes provisioning the services and the
+   group, then both services start their first build immediately. You
+   don't have to type any env vars yet.
+5. **Set the Groq key — one time, one place.**
+   <https://dashboard.render.com/env-groups> → click
+   **`geo-nyc-secrets`** → **Add Environment Variable**:
 
-   | Variable | Service | Value |
-   |---|---|---|
-   | `GEO_NYC_GROQ_API_KEY` | `geo-nyc-api` | your Groq key (starts with `gsk_`) |
+   | Key | Value |
+   |---|---|
+   | `GEO_NYC_GROQ_API_KEY` | your Groq key (starts with `gsk_`) |
 
-   Everything else (Groq model, CORS, `NEXT_PUBLIC_API_BASE_URL`,
-   `PYTHON_VERSION`, `NODE_VERSION`) is already in the blueprint.
+   Click **Save Changes**. Render auto-redeploys `geo-nyc-api` with
+   the new value injected. From now on, any future service in this
+   blueprint that lists `fromGroup: geo-nyc-secrets` inherits the key
+   automatically — you'll never type it in the dashboard again.
 
-5. Wait for both builds to finish:
+   > **Why a group?** The key is the only secret the stack needs. A
+   > Render Environment Group lets us set it once and have it follow
+   > every service forever, instead of being prompted per-service. The
+   > value still lives in Render's encrypted store; nothing about it
+   > touches `render.yaml` or git.
+
+6. Wait for both builds to finish (free tier):
    * `geo-nyc-api`: ~2–3 min (pip compiles numpy + scipy wheels on the
      first build, much faster on rebuilds).
    * `geo-nyc-web`: ~1–2 min (`npm ci` + `next build`).
