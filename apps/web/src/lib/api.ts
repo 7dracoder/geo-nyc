@@ -1,13 +1,25 @@
 import type { OptimizeRequest, OptimizeResponse } from "@/types/optimize";
 
-/** Normalized API origin (no trailing slash). Empty when unset. */
+const upstreamApi = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+
+/** True when a backend URL is configured (build-time env on Vercel). */
+export function apiConfigured(): boolean {
+  return upstreamApi.length > 0;
+}
+
+/**
+ * Base URL for API and static layer requests from this app.
+ * In the browser we use same-origin `/geo-nyc-proxy/...` (see `next.config.ts` rewrites)
+ * so Vercel → ngrok does not hit browser CORS. On the server, the real upstream URL is used.
+ */
 export function apiBase(): string {
-  const raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-  return raw.replace(/\/$/, "");
+  if (!upstreamApi) return "";
+  if (typeof window !== "undefined") return "/geo-nyc-proxy";
+  return upstreamApi;
 }
 
 function shouldMock(): boolean {
-  if (!apiBase()) return true;
+  if (!apiConfigured()) return true;
   if (typeof window === "undefined") return false;
   return new URLSearchParams(window.location.search).get("mock") === "1";
 }
