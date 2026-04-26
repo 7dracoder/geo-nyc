@@ -65,7 +65,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_API_BASE_URL` | Upstream FastAPI origin (no trailing slash), e.g. an ngrok URL. Used at **build** time for `next.config.ts` rewrites from `/geo-nyc-proxy/*` to this host. The browser never calls this origin directly. If empty, what-if uses the mock and overlays use only `public/layers/manifest.json`. |
+| `NEXT_PUBLIC_API_BASE_URL` | Upstream FastAPI origin (`https://…`, optional trailing slash). Used at **build** time for `next.config.ts` rewrites from `/geo-nyc-proxy/*` to this host. Invalid or host-less values are ignored (avoids Vercel `DNS_HOSTNAME_EMPTY` from bad rewrites). If empty or invalid, what-if uses the mock and overlays use only `public/layers/manifest.json`. |
 
 The Python API does not need to list your Vercel domain in CORS for these calls (traffic is Vercel → upstream). CORS on the backend still matters for other clients that hit ngrok directly from the browser.
 

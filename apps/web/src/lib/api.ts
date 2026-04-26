@@ -1,6 +1,7 @@
 import type { OptimizeRequest, OptimizeResponse } from "@/types/optimize";
+import { safeUpstreamOrigin } from "../../upstreamUrl";
 
-const upstreamApi = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
+const upstreamApi = safeUpstreamOrigin(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 /** True when a backend URL is configured (build-time env on Vercel). */
 export function apiConfigured(): boolean {
