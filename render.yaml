@@ -48,22 +48,34 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.7
 
-      # --- LLM provider (Groq cloud Llama) -----------------------------
-      # The API key lives in a Render Environment Group called
-      # "geo-nyc-secrets" — set it once in the dashboard and every
-      # service in this blueprint inherits it via `fromGroup` below.
-      # NEVER move GEO_NYC_GROQ_API_KEY into this file directly: it
-      # would land in git and Groq's secret scanner auto-revokes any
-      # key it spots in a public repo.
+      # --- LLM provider ------------------------------------------------
+      # Default ships in *fixture-only* mode: GEO_NYC_USE_FIXTURES=true
+      # below makes every run serve pre-baked extractions and meshes,
+      # which means the LLM is never actually called. We point the
+      # provider at "ollama" instead of "groq" because the Groq client
+      # refuses to start without an API key — and we deliberately keep
+      # API keys *out* of this file (anything committed to a public
+      # repo is auto-revoked by Groq's secret scanner). Ollama doesn't
+      # need a key; the /api/llm/health probe will simply report it as
+      # unreachable on Render, which is fine because no run path
+      # depends on it.
+      #
+      # >>> Want real LLM-driven PDF extraction instead of fixtures? <<<
+      # Two-step upgrade, performed entirely in the Render dashboard
+      # (no code changes required):
+      #   1. Edit this service's env vars:
+      #        GEO_NYC_LLM_PROVIDER  = groq
+      #        GEO_NYC_GROQ_API_KEY  = <your gsk_... key>
+      #        GEO_NYC_USE_FIXTURES  = false
+      #   2. Trigger a manual redeploy.
       - key: GEO_NYC_LLM_PROVIDER
-        value: groq
+        value: ollama
       - key: GEO_NYC_GROQ_BASE_URL
         value: https://api.groq.com/openai/v1
       - key: GEO_NYC_GROQ_MODEL
         value: llama-3.3-70b-versatile
       - key: GEO_NYC_LLM_TIMEOUT_SECONDS
         value: "120"
-      - fromGroup: geo-nyc-secrets
 
       # --- API server --------------------------------------------------
       # Render injects $PORT and exposes the service at $RENDER_EXTERNAL_URL.
@@ -162,31 +174,7 @@ services:
       - key: NEXT_PUBLIC_API_BASE_URL
         value: https://geo-nyc-api.onrender.com
 
-# =====================================================================
-# Shared secrets — Environment Group
-# =====================================================================
-# Defining the group here means Render creates an empty env group on
-# the first blueprint apply, and any service that lists it under
-# `fromGroup` automatically inherits its keys. You set the value(s)
-# once, in *one* place — never per-service.
-#
-# Why this exists: the project needs exactly one secret
-# (GEO_NYC_GROQ_API_KEY). With sync:false on a per-service var, Render
-# prompts you for it again every time you re-create a service. With
-# the group, you set it once at
-#   https://dashboard.render.com/env-groups -> geo-nyc-secrets
-# and it sticks across every redeploy and every new service.
-#
-# After your *first* blueprint apply:
-#   1. Open the dashboard, go to Env Groups -> geo-nyc-secrets.
-#   2. Add key  GEO_NYC_GROQ_API_KEY  with your `gsk_...` value.
-#   3. Click Save. Render auto-redeploys every linked service.
-#
-# This is intentionally NOT pre-filled here — putting an API key in a
-# committed YAML would leak it to GitHub and Groq's scanner would
-# revoke it within minutes.
-envVarGroups:
-  - name: geo-nyc-secrets
-    envVars:
-      - key: GEO_NYC_GROQ_API_KEY
-        sync: false
+# No envVarGroups needed: the default deploy ships in fixture-only
+# mode, which doesn't require any secrets. Enabling real LLM
+# extraction is a dashboard-only opt-in (see the comment block on
+# GEO_NYC_LLM_PROVIDER in the api service above).
