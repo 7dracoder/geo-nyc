@@ -53,7 +53,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 
 - Client-only R3F canvas in a bottom dock; hover expands the panel (see `src/app/globals.css` `.subsurface-*`).
-- Loads `public/exports/sample.glb` when present (centered with `Center`). If the file is missing or fails to decode, a **neutral placeholder block** still renders so the WebGL view is never empty.
+- **Model URL** (`resolveGltfUrl` in `src/lib/gltfAsset.ts`): `NEXT_PUBLIC_GLTF_URL` if set → else `GET /geo-nyc-proxy/static/exports/sample.glb` when the API proxy is configured → else `public/exports/sample.glb` if it returns 200 → else the **Khronos glTF Duck** (remote, standard binary) so the viewer always has real geometry. Tone mapping / color space are set on the WebGL renderer; meshes are auto-scaled to a consistent size.
 
 ## Layout and styling
 
@@ -67,6 +67,8 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 |----------|---------|
 | `NEXT_PUBLIC_API_BASE_URL` | Upstream FastAPI origin (`https://…`, optional trailing slash). Used at **build** time for `next.config.ts` rewrites from `/geo-nyc-proxy/*` to this host. Invalid or host-less values are ignored (avoids Vercel `DNS_HOSTNAME_EMPTY` from bad rewrites). If empty or invalid, what-if uses the mock and overlays use only `public/layers/manifest.json`. |
 
+| `NEXT_PUBLIC_GLTF_URL` | Optional full URL to a `.glb` for the 3D dock. When unset, the app probes local/proxy paths then falls back to the Khronos sample duck. |
+
 The Python API does not need to list your Vercel domain in CORS for these calls (traffic is Vercel → upstream). CORS on the backend still matters for other clients that hit ngrok directly from the browser.
 
 ## Project layout (selected)
@@ -75,7 +77,7 @@ The Python API does not need to list your Vercel domain in CORS for these calls 
 src/
   app/              # Next app router, layout, globals.css
   components/      # AppShell, MapView, LayerPanel, ManifestOverlays, AddressSearch, WhatIfPanel, SubsurfaceViewer
-  lib/              # geocode, api, manifestLayers, geojson-bbox, nyc-borough-hit, positron-label-cleanup
+  lib/              # geocode, api, manifestLayers, geojson-bbox, gltfAsset, nyc-borough-hit, positron-label-cleanup
   types/            # map-pick, optimize
 public/
   layers/           # boroughs_nyc.geojson, nyc_outside_mask.geojson, borough_labels.geojson

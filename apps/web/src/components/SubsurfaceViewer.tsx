@@ -1,6 +1,6 @@
 "use client";
 
-import { Center, OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import {
   Component,
@@ -8,35 +8,52 @@ import {
   type ReactNode,
   Suspense,
   useMemo,
+  useState,
+  useLayoutEffect,
 } from "react";
+import * as THREE from "three";
 import { Box, X } from "lucide-react";
+import { resolveGltfUrl } from "@/lib/gltfAsset";
 import type { MapPickLocation } from "@/types/map-pick";
 
-const GLB_URL = "/exports/sample.glb";
-
-/** Visible placeholder when GLB is missing or still loading. */
 function PlaceholderBlock() {
   return (
     <mesh castShadow receiveShadow>
       <boxGeometry args={[1.15, 0.75, 1.15]} />
-      <meshStandardMaterial
-        color="#78716c"
-        roughness={0.42}
-        metalness={0.12}
-        envMapIntensity={0.6}
-      />
+      <meshStandardMaterial color="#78716c" roughness={0.45} metalness={0.08} />
     </mesh>
   );
 }
 
-function GlbModel() {
-  const gltf = useGLTF(GLB_URL);
-  const scene = useMemo(() => gltf.scene.clone(), [gltf.scene]);
-  return (
-    <Center>
-      <primitive object={scene} />
-    </Center>
-  );
+function GlbModel({ url }: { url: string }) {
+  const gltf = useGLTF(url);
+  const root = useMemo(() => {
+    const g = gltf.scene.clone();
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const mat of mats) {
+          if (mat instanceof THREE.MeshStandardMaterial) {
+            mat.toneMapped = true;
+          }
+        }
+      }
+    });
+    const box = new THREE.Box3().setFromObject(g);
+    if (!box.isEmpty()) {
+      const size = box.getSize(new THREE.Vector3());
+      const max = Math.max(size.x, size.y, size.z, 1e-6);
+      g.scale.setScalar(1.85 / max);
+      box.setFromObject(g);
+      const c = box.getCenter(new THREE.Vector3());
+      g.position.sub(c);
+    }
+    return g;
+  }, [gltf.scene]);
+
+  return <primitive object={root} />;
 }
 
 type GlbBoundaryProps = { children: ReactNode };
@@ -53,9 +70,7 @@ class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
-    /* missing GLB / decode errors — placeholder stays up */
-  }
+  componentDidCatch(_error: Error, _info: ErrorInfo) {}
 
   render() {
     if (this.state.hasError) {
@@ -65,6 +80,23 @@ class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
   }
 }
 
+function SceneBody({ modelUrl }: { modelUrl: string }) {
+  return (
+    <>
+      <color attach="background" args={["#f0ede8"]} />
+      <ambientLight intensity={0.9} />
+      <directionalLight position={[5, 8, 4]} intensity={1.05} castShadow />
+      <directionalLight position={[-4, 3, -2]} intensity={0.35} />
+      <GlbErrorBoundary>
+        <Suspense fallback={<PlaceholderBlock />}>
+          <GlbModel url={modelUrl} />
+        </Suspense>
+      </GlbErrorBoundary>
+      <OrbitControls makeDefault enablePan minPolarAngle={0.35} maxPolarAngle={Math.PI - 0.35} />
+    </>
+  );
+}
+
 type SubsurfaceViewerProps = {
   pick: MapPickLocation | null;
   onClearPick?: () => void;
@@ -72,6 +104,17 @@ type SubsurfaceViewerProps = {
 
 export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
   const pickKey = pick ? `${pick.lng.toFixed(5)},${pick.lat.toFixed(5)}` : "none";
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    resolveGltfUrl().then((u) => {
+      if (!cancelled) setModelUrl(u);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="subsurface-dock">
@@ -109,24 +152,29 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
           ) : null}
         </div>
         <div className="subsurface-canvas-wrap">
-          <Canvas
-            key={pickKey}
-            className="!h-full !w-full touch-none"
-            style={{ width: "100%", height: "100%" }}
-            camera={{ position: [2.4, 1.9, 2.4], fov: 45 }}
-            gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
-            dpr={[1, 2]}
-          >
-            <color attach="background" args={["#f0ede8"]} />
-            <ambientLight intensity={0.82} />
-            <directionalLight position={[4, 6, 3]} intensity={0.95} />
-            <GlbErrorBoundary key={`glb-${pickKey}`}>
-              <Suspense fallback={<PlaceholderBlock />}>
-                <GlbModel />
-              </Suspense>
-            </GlbErrorBoundary>
-            <OrbitControls makeDefault enablePan />
-          </Canvas>
+          {modelUrl ? (
+            <Canvas
+              key={`${pickKey}-${modelUrl}`}
+              className="!h-full !w-full touch-none"
+              style={{ width: "100%", height: "100%" }}
+              camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
+              shadows
+              gl={{
+                antialias: true,
+                alpha: false,
+                powerPreference: "high-performance",
+                toneMapping: THREE.ACESFilmicToneMapping,
+                outputColorSpace: THREE.SRGBColorSpace,
+              }}
+              dpr={[1, 2]}
+            >
+              <SceneBody modelUrl={modelUrl} />
+            </Canvas>
+          ) : (
+            <div className="flex h-full w-full items-center justify-center bg-[#f0ede8] text-[11px] text-muted">
+              Loading 3D…
+            </div>
+          )}
         </div>
       </div>
     </div>
