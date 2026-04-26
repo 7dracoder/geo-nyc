@@ -133,7 +133,16 @@ class RBFRunner:
                 )
             )
 
-        # Step 2: enforce stratigraphic monotonicity on the *top*
+        # Step 2a: clamp every top_z into its assigned stratigraphic
+        # band. Without this, an under-constrained RBF can throw the
+        # deepest formation's top surface up to z_max in places, so
+        # the upper layers all collapse onto the same plane and only
+        # the deepest slab is visible. We re-centre each surface on
+        # an evenly-spaced target depth and cap the relief at a
+        # fraction of the layer thickness.
+        top_surfaces = _clamp_to_strat_bands(top_surfaces, extent.z_min, extent.z_max)
+
+        # Step 2b: enforce stratigraphic monotonicity on the *top*
         # surfaces alone — younger top can't dip below the older one
         # beneath it (same post-process GemPy applies via stack order).
         top_surfaces, monotonicity_fixes = _enforce_top_z_stack(
@@ -237,6 +246,54 @@ def _is_collinear(xy: np.ndarray, tol: float = 1e-9) -> bool:
     cov = centred.T @ centred
     eigvals = np.linalg.eigvalsh(cov)
     return bool(eigvals.min() <= tol * max(eigvals.max(), 1.0))
+
+
+def _clamp_to_strat_bands(
+    surfaces: list[_FormationSurface],
+    z_min: float,
+    z_max: float,
+    *,
+    relief_fraction: float = 1.0,
+) -> list[_FormationSurface]:
+    """Bound each top surface's relief around its own natural mean.
+
+    Even with anchor points the thin-plate-spline can extrapolate to
+    ``z_max`` (or ``z_min``) far away from any anchor. Without this
+    step the deepest formation can have peaks reaching the surface,
+    visually swallowing every younger layer above it.
+
+    We keep each surface's *anchor-derived mean* (so a deep bedrock
+    keeps reading deep), but cap the relief at ``relief_fraction``
+    times the per-layer thickness. ``_enforce_top_z_stack`` is run
+    afterwards to resolve any remaining overlap between adjacent
+    formations.
+    """
+
+    n = len(surfaces)
+    if n == 0:
+        return surfaces
+    depth = max(z_max - z_min, 1e-6)
+    layer_thickness = depth / n
+    half_relief = layer_thickness * 0.5 * relief_fraction
+
+    out: list[_FormationSurface] = []
+    for surface in surfaces:
+        natural_mean = float(np.mean(surface.top_z))
+        deviation = surface.top_z - natural_mean
+        clipped = np.clip(deviation, -half_relief, half_relief)
+        new_top = np.clip(natural_mean + clipped, z_min, z_max)
+        out.append(
+            _FormationSurface(
+                rock_id=surface.rock_id,
+                name=surface.name,
+                rock_type=surface.rock_type,
+                color_hex=surface.color_hex,
+                top_z=new_top,
+                anchor_count=surface.anchor_count,
+                interpolation=surface.interpolation,
+            )
+        )
+    return out
 
 
 def _enforce_top_z_stack(

@@ -174,3 +174,64 @@ body {
     height: min(52vh, 38rem);
   }
 }
+
+/* Layer legend overlay (mirrors the side legend in classic GemPy plots). */
+.subsurface-legend {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgb(255 254 249 / 0.92);
+  backdrop-filter: blur(4px);
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--ink);
+  pointer-events: none;
+  max-width: 60%;
+  box-shadow: 0 2px 12px -4px rgb(28 25 23 / 0.18);
+}
+
+.subsurface-legend-title {
+  font-weight: 600;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.subsurface-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.subsurface-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  flex-shrink: 0;
+}
+
+.subsurface-legend-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* In-canvas axis labels. */
+.axis-label {
+  font: 600 10px/1 var(--font-sans), system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  text-shadow: 0 0 3px rgb(255 255 255 / 0.9);
+  pointer-events: none;
+  user-select: none;
+}
