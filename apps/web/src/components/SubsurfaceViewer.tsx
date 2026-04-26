@@ -8,13 +8,17 @@ import {
   type ReactNode,
   Suspense,
   useMemo,
-  useState,
-  useLayoutEffect,
 } from "react";
 import * as THREE from "three";
 import { Box, X } from "lucide-react";
-import { resolveGltfUrl } from "@/lib/gltfAsset";
 import type { MapPickLocation } from "@/types/map-pick";
+
+/**
+ * Static GLB path — served from public/exports/sample.glb.
+ * No async resolution, no network probes, no WebGL context churn.
+ * To update the model, replace the file and redeploy.
+ */
+const MODEL_URL = "/exports/sample.glb";
 
 const PALETTE = [
   "#5C4A3A",
@@ -155,18 +159,6 @@ type SubsurfaceViewerProps = {
 };
 
 export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
-  const [modelUrl, setModelUrl] = useState<string | null>(null);
-
-  useLayoutEffect(() => {
-    let cancelled = false;
-    resolveGltfUrl().then((u) => {
-      if (!cancelled) setModelUrl(u);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   return (
     <div className="subsurface-dock">
       <div
@@ -203,31 +195,24 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
           ) : null}
         </div>
         <div className="subsurface-canvas-wrap">
-          {modelUrl ? (
-            <Canvas
-              key={modelUrl}
-              className="!h-full !w-full touch-none"
-              style={{ width: "100%", height: "100%" }}
-              camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
-              frameloop="demand"
-              gl={{
-                antialias: false,
-                alpha: false,
-                powerPreference: "low-power",
-                toneMapping: THREE.NoToneMapping,
-                outputColorSpace: THREE.SRGBColorSpace,
-                preserveDrawingBuffer: false,
-                failIfMajorPerformanceCaveat: false,
-              }}
-              dpr={1}
-            >
-              <SceneBody modelUrl={modelUrl} />
-            </Canvas>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#f0ede8] text-[11px] text-muted">
-              Loading 3D…
-            </div>
-          )}
+          <Canvas
+            className="!h-full !w-full touch-none"
+            style={{ width: "100%", height: "100%" }}
+            camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
+            frameloop="demand"
+            gl={{
+              antialias: false,
+              alpha: false,
+              powerPreference: "low-power",
+              toneMapping: THREE.NoToneMapping,
+              outputColorSpace: THREE.SRGBColorSpace,
+              preserveDrawingBuffer: false,
+              failIfMajorPerformanceCaveat: false,
+            }}
+            dpr={1}
+          >
+            <SceneBody modelUrl={MODEL_URL} />
+          </Canvas>
         </div>
       </div>
     </div>
