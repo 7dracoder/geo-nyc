@@ -1,16 +1,68 @@
 "use client";
 
-import { OrbitControls, useGLTF } from "@react-three/drei";
+import { Center, OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Suspense } from "react";
+import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+  Suspense,
+  useMemo,
+} from "react";
 import { Box, X } from "lucide-react";
 import type { MapPickLocation } from "@/types/map-pick";
 
-useGLTF.preload("/exports/sample.glb");
+const GLB_URL = "/exports/sample.glb";
 
-function MeshFromFile() {
-  const gltf = useGLTF("/exports/sample.glb");
-  return <primitive object={gltf.scene} />;
+/** Visible placeholder when GLB is missing or still loading. */
+function PlaceholderBlock() {
+  return (
+    <mesh castShadow receiveShadow>
+      <boxGeometry args={[1.15, 0.75, 1.15]} />
+      <meshStandardMaterial
+        color="#78716c"
+        roughness={0.42}
+        metalness={0.12}
+        envMapIntensity={0.6}
+      />
+    </mesh>
+  );
+}
+
+function GlbModel() {
+  const gltf = useGLTF(GLB_URL);
+  const scene = useMemo(() => gltf.scene.clone(), [gltf.scene]);
+  return (
+    <Center>
+      <primitive object={scene} />
+    </Center>
+  );
+}
+
+type GlbBoundaryProps = { children: ReactNode };
+
+type GlbBoundaryState = { hasError: boolean };
+
+class GlbErrorBoundary extends Component<GlbBoundaryProps, GlbBoundaryState> {
+  constructor(props: GlbBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): GlbBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    /* missing GLB / decode errors — placeholder stays up */
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <PlaceholderBlock />;
+    }
+    return this.props.children;
+  }
 }
 
 type SubsurfaceViewerProps = {
@@ -57,13 +109,22 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
           ) : null}
         </div>
         <div className="subsurface-canvas-wrap">
-          <Canvas key={pickKey} camera={{ position: [2.4, 1.9, 2.4], fov: 45 }}>
+          <Canvas
+            key={pickKey}
+            className="!h-full !w-full touch-none"
+            style={{ width: "100%", height: "100%" }}
+            camera={{ position: [2.4, 1.9, 2.4], fov: 45 }}
+            gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
+            dpr={[1, 2]}
+          >
             <color attach="background" args={["#f0ede8"]} />
-            <ambientLight intensity={0.85} />
-            <directionalLight position={[4, 6, 3]} intensity={0.9} />
-            <Suspense fallback={null}>
-              <MeshFromFile />
-            </Suspense>
+            <ambientLight intensity={0.82} />
+            <directionalLight position={[4, 6, 3]} intensity={0.95} />
+            <GlbErrorBoundary key={`glb-${pickKey}`}>
+              <Suspense fallback={<PlaceholderBlock />}>
+                <GlbModel />
+              </Suspense>
+            </GlbErrorBoundary>
             <OrbitControls makeDefault enablePan />
           </Canvas>
         </div>

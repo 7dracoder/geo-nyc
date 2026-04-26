@@ -53,7 +53,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 
 - Client-only R3F canvas in a bottom dock; hover expands the panel (see `src/app/globals.css` `.subsurface-*`).
-- Default asset: `public/exports/sample.glb` (ensure this file exists for the preview to load).
+- Loads `public/exports/sample.glb` when present (centered with `Center`). If the file is missing or fails to decode, a **neutral placeholder block** still renders so the WebGL view is never empty.
 
 ## Layout and styling
 
