@@ -48,7 +48,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 - **Address:** Nominatim (`src/lib/geocode.ts`) with NYC-biased search; autocomplete and submit. Attribution: OpenStreetMap link in the panel.
 - **What-if:** Debounced calls to `POST /api/optimize` when `NEXT_PUBLIC_API_BASE_URL` is set; otherwise a local mock. Add `?mock=1` to force the mock even if a base URL is set (`src/lib/api.ts`). In the browser the real URL is same-origin `/geo-nyc-proxy/...` (rewritten by Next to your backend) so cross-origin CORS is avoided on Vercel.
-- **Part 3 overlays:** `AppShell` loads the manifest via `fetchDisplayableManifestLayers` (`src/lib/manifestLayers.ts`). The **Layers** sidebar toggles each overlay; **Fit to map** zooms to the union of bounds of all visible layers (fetches GeoJSON client-side to compute bbox). `ManifestOverlays.tsx` renders only enabled entries.
+- **Part 3 overlays:** `AppShell` loads the manifest via `fetchDisplayableManifestLayers` (`src/lib/manifestLayers.ts`). The **Layers** sidebar toggles each overlay; **Fit to map** zooms to the union of bounds of visible layers, **clipped to the five-borough frame** (same bounds as the initial map fit). Overlays are drawn **under** the outside-borough mask so extra AOI geometry does not sit on top of the grey “non‑NYC” fill.
 
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 

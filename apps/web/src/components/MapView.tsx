@@ -14,7 +14,13 @@ import {
   type BoroughFeatureCollection,
   isLngLatInsideNycFiveBoroughs,
 } from "@/lib/nyc-borough-hit";
-import { bboxFromGeoJSON, unionBBox, type BBoxLngLat } from "@/lib/geojson-bbox";
+import {
+  bboxFromGeoJSON,
+  bboxFromLngLatBounds,
+  intersectBBox,
+  unionBBox,
+  type BBoxLngLat,
+} from "@/lib/geojson-bbox";
 import type { ManifestLayer } from "@/lib/manifestLayers";
 import { hidePositronPlaceAndWaterLabels } from "@/lib/positron-label-cleanup";
 import Map, {
@@ -60,6 +66,12 @@ const INITIAL_VIEW = {
 
 const MASK_FILL_COLOR = "#dde3ee";
 const BOROUGH_LINE_COLOR = "#57534e";
+
+/** Clip “fit to overlays” to the same NYC frame as the initial map fit. */
+const NYC_OVERLAY_FIT_BBOX: BBoxLngLat = bboxFromLngLatBounds(
+  NYC_FIVE_BORO_BOUNDS[0],
+  NYC_FIVE_BORO_BOUNDS[1],
+);
 
 export type MapViewHandle = {
   /** Zoom to the combined bounds of all manifest layers that are currently enabled. */
@@ -161,10 +173,12 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(
       }
       if (!acc) return;
 
+      const clipped = intersectBBox(acc, NYC_OVERLAY_FIT_BBOX) ?? acc;
+
       map.fitBounds(
         [
-          [acc[0], acc[1]],
-          [acc[2], acc[3]],
+          [clipped[0], clipped[1]],
+          [clipped[2], clipped[3]],
         ],
         {
           padding: { top: 56, bottom: 56, left: 56, right: 56 },
@@ -200,6 +214,7 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(
           style={{ width: "100%", height: "100%" }}
         >
           <NavigationControl position="top-right" showCompass={false} />
+          <ManifestOverlays layers={manifestLayers} enabled={layerEnabled} />
           <Source id="nyc-outside-mask" type="geojson" data={NYC_OUTSIDE_MASK}>
             <Layer
               id="nyc-outside-mask-fill"
@@ -210,7 +225,6 @@ export const MapView = forwardRef<MapViewHandle, MapViewProps>(
               }}
             />
           </Source>
-          <ManifestOverlays layers={manifestLayers} enabled={layerEnabled} />
           <Source id="borough-labels" type="geojson" data={BOROUGH_LABELS}>
             <Layer
               id="borough-labels-symbol"

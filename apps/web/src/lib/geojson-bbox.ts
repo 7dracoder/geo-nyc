@@ -68,3 +68,21 @@ export function unionBBox(a: BBoxLngLat, b: BBoxLngLat): BBoxLngLat {
     Math.max(a[3], b[3]),
   ];
 }
+
+/** Intersection of two axis-aligned boxes; null if disjoint or degenerate. */
+export function intersectBBox(a: BBoxLngLat, b: BBoxLngLat): BBoxLngLat | null {
+  const w = Math.max(a[0], b[0]);
+  const s = Math.max(a[1], b[1]);
+  const e = Math.min(a[2], b[2]);
+  const n = Math.min(a[3], b[3]);
+  if (e <= w || n <= s) return null;
+  return [w, s, e, n];
+}
+
+/** `[[west,south],[east,north]]` → bbox tuple */
+export function bboxFromLngLatBounds(
+  sw: [number, number],
+  ne: [number, number],
+): BBoxLngLat {
+  return [sw[0], sw[1], ne[0], ne[1]];
+}
