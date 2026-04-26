@@ -91,26 +91,36 @@ services:
         value: INFO
 
       # --- Storage roots ----------------------------------------------
-      # Free tier disk is ephemeral; these point at /var/data so a
-      # persistent disk (paid) can mount over them without code changes.
+      # Render's free tier doesn't grant write access to /var/data
+      # (that path only exists when a paid persistent disk is mounted
+      # there). We use repo-relative paths instead — pydantic resolves
+      # them against REPO_ROOT, which on Render is
+      # /opt/render/project/src — that directory is writable by the
+      # service user, just ephemeral (wiped on every cold start).
+      #
+      # If you upgrade to a paid plan and mount the optional `disk:`
+      # block below, change every value here to /var/data/<subdir> so
+      # writes target the persistent mount.
       - key: GEO_NYC_DATA_DIR
-        value: /var/data
+        value: data
       - key: GEO_NYC_DOCUMENTS_RAW_DIR
-        value: /var/data/documents/raw
+        value: data/documents/raw
       - key: GEO_NYC_DOCUMENTS_EXTRACTED_DIR
-        value: /var/data/documents/extracted
+        value: data/documents/extracted
       - key: GEO_NYC_RUNS_DIR
-        value: /var/data/runs
+        value: data/runs
       - key: GEO_NYC_EXPORTS_DIR
-        value: /var/data/exports
+        value: data/exports
       - key: GEO_NYC_FIELDS_DIR
-        value: /var/data/fields
+        value: data/fields
       - key: GEO_NYC_CACHE_DIR
-        value: /var/data/cache
+        value: data/cache
 
     # --- Persistent disk (OPTIONAL — paid feature) ----------------------
     # Uncomment to keep seeded runs across cold starts. Costs ~$1/mo for
     # 1 GB on Render's standard plan tier. Free plan ignores `disk:`.
+    # If you enable this, also rewrite the GEO_NYC_*_DIR values above to
+    # absolute /var/data/<subdir> paths so writes target the mount.
     #
     # disk:
     #   name: geo-nyc-data
