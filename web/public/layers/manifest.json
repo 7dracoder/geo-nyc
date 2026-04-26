@@ -1,6 +1,10 @@
 {
-  "generated_at": "2026-04-26T00:00:00Z",
-  "aoi_boro_codes": [1, 2, 3],
+  "generated_at": "2026-04-26T15:44:39.822439+00:00",
+  "aoi_boro_codes": [
+    1,
+    2,
+    3
+  ],
   "aoi_crs": "EPSG:4326",
   "projected_processing_crs": "EPSG:32618",
   "layers": [
@@ -25,23 +29,13 @@
       "download_date": "2026-04-26"
     },
     {
-      "id": "flood_stub",
-      "title": "Flood Context (Stub)",
+      "id": "hurricane_evacuation_zones",
+      "title": "Hurricane Evacuation Zones",
       "type": "fill",
-      "geojson_path": "/layers/flood_stub.geojson",
+      "geojson_path": "/layers/hurricane_evacuation_zones.geojson",
       "opacity": 0.35,
       "legend_color": "#4C78A8",
-      "source_url": "https://data.cityofnewyork.us/",
-      "download_date": "2026-04-26"
-    },
-    {
-      "id": "depth_contours",
-      "title": "Depth Contours",
-      "type": "line",
-      "geojson_path": "/layers/depth_contours.geojson",
-      "opacity": 0.9,
-      "legend_color": "#B45309",
-      "source_url": "generated_from_depth_field",
+      "source_url": "https://data.cityofnewyork.us/resource/epne-qv9x.geojson?$limit=50000",
       "download_date": "2026-04-26"
     }
   ]

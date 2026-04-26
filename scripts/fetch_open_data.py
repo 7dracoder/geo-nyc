@@ -31,7 +31,7 @@ ADDITIONAL_LAYER_SPECS = [
         layer_id="hurricane_evacuation_zones",
         title="Hurricane Evacuation Zones",
         layer_type="fill",
-        source_url="https://data.cityofnewyork.us/resource/7rja-8z8y.geojson?$limit=50000",
+        source_url="https://data.cityofnewyork.us/resource/epne-qv9x.geojson?$limit=50000",
         legend_color="#4C78A8",
         opacity=0.35,
     ),

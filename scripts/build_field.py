@@ -51,13 +51,13 @@ def _build_contours_geojson(grid: np.ndarray, x: np.ndarray, y: np.ndarray, cont
     contour_set = plt.contour(xx, yy, grid, levels=levels)
 
     features = []
+    # Use allsegs to stay compatible across matplotlib contour object changes.
     for level_idx, level in enumerate(contour_set.levels):
-        collection = contour_set.collections[level_idx]
-        for path in collection.get_paths():
-            vertices = path.vertices
-            if len(vertices) < 2:
+        segments = contour_set.allsegs[level_idx]
+        for seg in segments:
+            if len(seg) < 2:
                 continue
-            geom = LineString([(float(v[0]), float(v[1])) for v in vertices])
+            geom = LineString([(float(v[0]), float(v[1])) for v in seg])
             features.append(
                 {
                     "type": "Feature",
