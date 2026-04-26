@@ -41,6 +41,15 @@ function PlaceholderBlock() {
 }
 
 /**
+ * Vertical exaggeration factor for geological visualization.
+ * Standard practice in subsurface viz — without this, an 80m depth
+ * range across a 1000m footprint looks completely flat (8% aspect ratio).
+ * 8x makes the buried valley clearly visible while keeping the model
+ * recognisable as terrain.
+ */
+const Z_EXAGGERATION = 8;
+
+/**
  * Cheap, robust GLB rendering for the dock:
  *   - Compute vertex normals when missing (else lit materials render black).
  *   - Force DoubleSide so inconsistent winding doesn't hide layers.
@@ -48,6 +57,7 @@ function PlaceholderBlock() {
  *     lit material in three.js: no PBR, no IBL, no PMREM cubemap allocation —
  *     which is the difference between "WebGL context lost" and a solid render
  *     when MapLibre is already eating one WebGL context on the page.
+ *   - Apply vertical exaggeration so subsurface depth variation is visible.
  *   - If the source baseColor is missing or near-black, swap in a per-mesh
  *     palette color so layers are always visible.
  *   - No shadows.
@@ -92,15 +102,31 @@ function GlbModel({ url }: { url: string }) {
       o.material = cheap;
     });
 
+    // Apply vertical exaggeration before fitting to view box.
+    // The mesh Z axis carries depth in projected metres; stretching it
+    // makes the buried-valley topography clearly visible.
+    g.scale.set(1, 1, Z_EXAGGERATION);
+
+    // Now fit the exaggerated scene into the view cube.
     const box = new THREE.Box3().setFromObject(g);
     if (!box.isEmpty()) {
       const size = box.getSize(new THREE.Vector3());
       const max = Math.max(size.x, size.y, size.z, 1e-6);
-      g.scale.setScalar(1.85 / max);
+      const fitScale = 1.85 / max;
+      g.scale.set(fitScale, fitScale, fitScale * Z_EXAGGERATION);
       box.setFromObject(g);
       const c = box.getCenter(new THREE.Vector3());
       g.position.sub(c);
     }
+
+    // Recompute normals after scaling so lighting is correct.
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        const geom = o.geometry as THREE.BufferGeometry | undefined;
+        if (geom) geom.computeVertexNormals();
+      }
+    });
+
     return g;
   }, [gltf.scene]);
 
