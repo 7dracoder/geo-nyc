@@ -52,7 +52,18 @@ class Settings(BaseSettings):
 
     # --- LLM provider ------------------------------------------------------
 
-    llm_provider: Literal["ollama"] = Field(default="ollama")
+    # Default is now Groq — cloud-hosted Llama, no local install needed.
+    # Set GEO_NYC_LLM_PROVIDER=ollama to fall back to a local ollama
+    # daemon for offline / air-gapped runs.
+    llm_provider: Literal["groq", "ollama"] = Field(default="groq")
+
+    # Groq (OpenAI-compatible). Key is a backend secret — never ship it
+    # to the browser via NEXT_PUBLIC_*; never paste it into Vercel.
+    groq_api_key: str = Field(default="")
+    groq_base_url: str = Field(default="https://api.groq.com/openai/v1")
+    groq_model: str = Field(default="llama-3.3-70b-versatile")
+
+    # Ollama (local). Only used when llm_provider == "ollama".
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3.1:8b")
     ollama_fast_model: str | None = Field(default=None)
@@ -150,7 +161,7 @@ class Settings(BaseSettings):
         for path in self.all_storage_dirs():
             path.mkdir(parents=True, exist_ok=True)
 
-    @field_validator("ollama_base_url", "public_base_url")
+    @field_validator("ollama_base_url", "groq_base_url", "public_base_url")
     @classmethod
     def _strip_trailing_slash(cls, value: str) -> str:
         # Downstream code joins paths with ``f"{base}/path"``; a trailing

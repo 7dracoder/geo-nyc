@@ -103,6 +103,44 @@ class RunRequest(BaseModel):
         le=90.0,
         description="Latitude (WGS84) of the click location.",
     )
+    dsl_text: str | None = Field(
+        default=None,
+        description=(
+            "Inline DSL text. When provided (and parses cleanly) it overrides "
+            "both fixture and LLM-derived DSL for this run. Lets the 3D dock "
+            "build a model directly from operator-supplied DSL."
+        ),
+    )
+
+
+# --- DSL ------------------------------------------------------------------
+
+
+class DSLParseRequest(BaseModel):
+    """Body for ``POST /api/dsl/parse``."""
+
+    text: str = Field(..., description="Raw DSL text to parse and validate.")
+
+
+class DSLParseError(BaseModel):
+    """One parse or validation issue, ready for inline rendering."""
+
+    line: int | None = None
+    column: int | None = None
+    message: str
+    severity: Literal["error", "warning"] = "error"
+
+
+class DSLParseResponse(BaseModel):
+    """Response for ``POST /api/dsl/parse``."""
+
+    is_valid: bool
+    rocks_count: int = 0
+    depositions_count: int = 0
+    erosions_count: int = 0
+    intrusions_count: int = 0
+    errors: list[DSLParseError] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
 
 
 class RunListResponse(BaseModel):
@@ -121,6 +159,9 @@ class DocumentListResponse(BaseModel):
 
 __all__ = [
     "Artifact",
+    "DSLParseError",
+    "DSLParseRequest",
+    "DSLParseResponse",
     "DocumentListResponse",
     "DocumentRecord",
     "DocumentStatus",

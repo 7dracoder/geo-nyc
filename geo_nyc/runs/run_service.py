@@ -252,7 +252,13 @@ class RunService:
                 "today. Set GEO_NYC_USE_FIXTURES=true or wait for Phase 5/8."
             )
 
-        document_id = (request_payload or {}).get("document_id")
+        request_payload = request_payload or {}
+        document_id = request_payload.get("document_id")
+        inline_dsl_text = request_payload.get("dsl_text")
+        if isinstance(inline_dsl_text, str):
+            inline_dsl_text = inline_dsl_text.strip() or None
+        else:
+            inline_dsl_text = None
         # Validate inputs that should 404 (not "run failed") *before*
         # we allocate run dirs or persist any state.
         ranked_chunks: RankedChunks | None = None
@@ -277,7 +283,12 @@ class RunService:
         for d in (run_dir, export_dir, field_dir):
             d.mkdir(parents=True, exist_ok=True)
 
-        mode = "document_chunks+fixture" if document_id else "fixture"
+        if inline_dsl_text:
+            mode = (
+                "document_inline_dsl" if document_id else "inline_dsl"
+            )
+        else:
+            mode = "document_chunks+fixture" if document_id else "fixture"
 
         manifest = RunManifest(
             run_id=run_id,
@@ -350,16 +361,25 @@ class RunService:
                 )
 
             # Pick the canonical DSL + Program for the rest of the pipeline.
-            # Prefer the LLM-derived DSL when it parsed + validated; the
-            # fixture is the deterministic fall-back so the demo never
-            # ships an empty mesh.
+            # Priority order:
+            #   1. Inline DSL text from the request body (operator pasted it
+            #      into the 3D dock or supplied it via API).
+            #   2. LLM-derived DSL when it parsed + validated.
+            #   3. Fixture DSL — deterministic fall-back so the demo never
+            #      ships an empty mesh.
             llm_dsl_path = run_dir / "geology.dsl"
             using_llm_dsl = bool(
                 dsl_summary
                 and dsl_summary.get("succeeded")
                 and llm_dsl_path.is_file()
             )
-            if using_llm_dsl:
+            if inline_dsl_text:
+                canonical_dsl_text = inline_dsl_text
+                canonical_dsl_description = (
+                    "Canonical DSL the run executed against — supplied "
+                    "inline by the request (operator-authored DSL)."
+                )
+            elif using_llm_dsl:
                 canonical_dsl_text = llm_dsl_path.read_text(encoding="utf-8")
                 canonical_dsl_description = (
                     "Canonical DSL the run executed against — sourced from the "
@@ -449,6 +469,15 @@ class RunService:
                         "fallback_from": list(mesh_outcome.result.fallback_from),
                         "duration_ms": mesh_outcome.result.duration_ms,
                         "surface_ids": [layer.surface_id for layer in layers],
+                        "surfaces": [
+                            {
+                                "surface_id": layer.surface_id,
+                                "name": layer.name,
+                                "rock_type": layer.rock_type,
+                                "color_hex": layer.color_hex,
+                            }
+                            for layer in layers
+                        ],
                         "vertex_count": sum(layer.vertex_count() for layer in layers),
                         "face_count": sum(layer.face_count() for layer in layers),
                     },
