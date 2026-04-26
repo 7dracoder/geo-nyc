@@ -155,9 +155,7 @@ type SubsurfaceViewerProps = {
 };
 
 export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
-  const pickKey = pick ? `${pick.lng.toFixed(5)},${pick.lat.toFixed(5)}` : "none";
   const [modelUrl, setModelUrl] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -207,7 +205,7 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
         <div className="subsurface-canvas-wrap">
           {modelUrl ? (
             <Canvas
-              key={`${pickKey}-${modelUrl}-${reloadKey}`}
+              key={modelUrl}
               className="!h-full !w-full touch-none"
               style={{ width: "100%", height: "100%" }}
               camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
@@ -222,19 +220,6 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
                 failIfMajorPerformanceCaveat: false,
               }}
               dpr={1}
-              onCreated={({ gl }) => {
-                const canvas = gl.domElement;
-                const onLost = (e: Event) => {
-                  e.preventDefault();
-                  console.warn("[geo-nyc] WebGL context lost in subsurface dock; will rebuild");
-                  window.setTimeout(() => setReloadKey((k) => k + 1), 250);
-                };
-                const onRestored = () => {
-                  console.info("[geo-nyc] WebGL context restored in subsurface dock");
-                };
-                canvas.addEventListener("webglcontextlost", onLost);
-                canvas.addEventListener("webglcontextrestored", onRestored);
-              }}
             >
               <SceneBody modelUrl={modelUrl} />
             </Canvas>
