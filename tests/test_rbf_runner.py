@@ -37,7 +37,9 @@ def test_runner_produces_one_layer_per_formation(fixture_inputs: GemPyInputs) ->
     result = RBFRunner(RBFRunnerConfig(grid_nx=16, grid_ny=16)).run(fixture_inputs)
     assert result.engine == "rbf"
     assert len(result.layers) == len(fixture_inputs.formations)
-    assert all(layer.vertex_count() == 16 * 16 for layer in result.layers)
+    # Each layer is a closed slab: top grid + bottom grid + side walls,
+    # so the vertex count is 2 * nx * ny.
+    assert all(layer.vertex_count() == 2 * 16 * 16 for layer in result.layers)
     assert result.duration_ms >= 0
 
 
@@ -51,36 +53,45 @@ def test_runner_returns_layers_in_stratigraphic_order(
     assert surface_ids[-1].endswith("R_FILL")
 
 
+def _top_z_of_slab(layer, grid_nx: int, grid_ny: int) -> np.ndarray:
+    """First half of slab vertices = the geological top surface."""
+
+    n_grid = grid_nx * grid_ny
+    return layer.vertices[:n_grid, 2]
+
+
 def test_runner_respects_fixture_horizon_depths(
     fixture_inputs: GemPyInputs,
 ) -> None:
     result = RBFRunner(RBFRunnerConfig(grid_nx=16, grid_ny=16)).run(fixture_inputs)
     rock_to_layer = {layer.surface_id: layer for layer in result.layers}
 
-    # Bedrock top should have significant spatial variation (shallow at
-    # edges, deep in the middle) — the enriched fixture has bedrock
-    # ranging from -15 m to -80 m across the AOI.
+    # Bedrock *top* should have significant spatial variation (shallow
+    # at edges, deep in the middle) — the enriched fixture has bedrock
+    # ranging from -15 m to -80 m across the AOI. We slice the top
+    # half of the slab because the slab also packs a flat extent-floor
+    # surface underneath each formation.
     schist = rock_to_layer["S_R_SCHIST"]
-    schist_z = schist.vertices[:, 2]
-    z_range = float(schist_z.max() - schist_z.min())
+    schist_top_z = _top_z_of_slab(schist, 16, 16)
+    z_range = float(schist_top_z.max() - schist_top_z.min())
     assert z_range > 20.0, f"Expected significant bedrock relief, got range={z_range:.1f} m"
     # Mean should be somewhere in the middle of the fixture range.
-    assert -70.0 < schist_z.mean() < -20.0
+    assert -70.0 < schist_top_z.mean() < -20.0
 
     # Ground surface (top-of-fill) should still be near 0.
     fill = rock_to_layer["S_R_FILL"]
-    assert fill.vertices[:, 2].mean() == pytest.approx(0.0, abs=0.5)
+    assert _top_z_of_slab(fill, 16, 16).mean() == pytest.approx(0.0, abs=0.5)
 
 
 def test_stack_order_is_strictly_monotonic(fixture_inputs: GemPyInputs) -> None:
     result = RBFRunner(RBFRunnerConfig(grid_nx=12, grid_ny=12)).run(fixture_inputs)
-    older_z = result.layers[0].vertices[:, 2]
+    older_top_z = _top_z_of_slab(result.layers[0], 12, 12)
     for younger in result.layers[1:]:
-        younger_z = younger.vertices[:, 2]
-        assert (younger_z >= older_z - 1e-6).all(), (
-            "Younger formation surface dipped below the older one underneath."
+        younger_top_z = _top_z_of_slab(younger, 12, 12)
+        assert (younger_top_z >= older_top_z - 1e-6).all(), (
+            "Younger formation top dipped below the older top underneath."
         )
-        older_z = younger_z
+        older_top_z = younger_top_z
 
 
 def test_empty_inputs_returns_no_layers() -> None:
@@ -132,10 +143,18 @@ def test_few_anchors_falls_back_to_constant_mean() -> None:
 
     result = RBFRunner(RBFRunnerConfig(grid_nx=8, grid_ny=8)).run(inputs)
     assert len(result.layers) == 2
-    a_z = result.layers[0].vertices[:, 2]
-    b_z = result.layers[1].vertices[:, 2]
-    assert np.allclose(a_z, -30.0)
-    assert np.allclose(b_z, -5.0)
+    n_grid = 8 * 8
+    # Top half of each slab = the top-of-formation surface.
+    a_top_z = result.layers[0].vertices[:n_grid, 2]
+    b_top_z = result.layers[1].vertices[:n_grid, 2]
+    assert np.allclose(a_top_z, -30.0)
+    assert np.allclose(b_top_z, -5.0)
+    # Bottom half of the deepest slab = extent floor; bottom of the
+    # younger slab = top of the older one underneath.
+    a_bot_z = result.layers[0].vertices[n_grid:, 2]
+    b_bot_z = result.layers[1].vertices[n_grid:, 2]
+    assert np.allclose(a_bot_z, extent.z_min)
+    assert np.allclose(b_bot_z, -30.0)
     layer_meta = result.metadata["layers"]
     assert layer_meta[0]["interpolation"] == "constant_mean"
     assert layer_meta[1]["interpolation"] == "constant_mean"

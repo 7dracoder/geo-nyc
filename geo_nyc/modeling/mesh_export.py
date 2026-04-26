@@ -9,6 +9,24 @@ it is a single file, embeds buffers inline, and is what Three.js's
 still accept ``.gltf`` for callers who explicitly want the JSON
 manifest form (in which case trimesh produces a multi-asset bundle and
 we write each asset alongside the requested path).
+
+The exporter also performs two display-only transforms before writing:
+
+1. **+Y up rotation.** Layer meshes are produced in geo-engineering
+   convention (``+Z`` up, depth grows negative). glTF / Three.js use
+   ``+Y`` up by default, so we swap axes once at export time. Layers
+   then stack vertically in the dock instead of pointing into the
+   camera.
+2. **Vertical exaggeration.** NYC subsurface depth (~200 m) is tiny
+   next to the AOI footprint (~1 km), so without exaggeration the
+   stack collapses into a sliver when the dock auto-fits the bounding
+   box. A ``5×`` default makes the column readable while still being
+   honest about which axis is up.
+
+Both transforms only touch the geometry written to the GLB; the
+``extent_*`` scene metadata stays in original model coordinates so
+downstream consumers (field grid, manifest) keep their numeric
+contract.
 """
 
 from __future__ import annotations
@@ -23,12 +41,21 @@ from geo_nyc.exceptions import MeshExportError
 from geo_nyc.modeling.extent import ModelExtent
 from geo_nyc.modeling.synthetic_mesh import LayerMesh
 
+# Default vertical exaggeration applied to the GLB so the layered
+# stack reads visually in the dock. Picked empirically: with the
+# fixture extent (1000 m × 1000 m × 200 m) a ``5×`` exaggeration makes
+# all three axes roughly the same length once the dock auto-fits the
+# bounding box.
+_DEFAULT_VERTICAL_EXAGGERATION = 5.0
+
 
 def export_layers_to_gltf(
     layers: list[LayerMesh],
     output_path: Path,
     *,
     extent: ModelExtent | None = None,
+    vertical_exaggeration: float = _DEFAULT_VERTICAL_EXAGGERATION,
+    swap_to_y_up: bool = True,
 ) -> Path:
     """Export ``layers`` to a single ``.gltf`` (or ``.glb``) scene.
 
@@ -39,6 +66,10 @@ def export_layers_to_gltf(
 
     if not layers:
         raise MeshExportError("No layers provided; cannot export an empty mesh.")
+    if vertical_exaggeration <= 0.0:
+        raise MeshExportError(
+            f"vertical_exaggeration must be > 0, got {vertical_exaggeration!r}"
+        )
 
     output_path = Path(output_path)
     suffix = output_path.suffix.lower()
@@ -51,8 +82,13 @@ def export_layers_to_gltf(
 
     scene = trimesh.Scene()
     for layer in layers:
+        gltf_vertices = _model_to_gltf_coords(
+            np.asarray(layer.vertices, dtype=np.float64),
+            vertical_exaggeration=vertical_exaggeration,
+            swap_to_y_up=swap_to_y_up,
+        )
         mesh = trimesh.Trimesh(
-            vertices=np.asarray(layer.vertices, dtype=np.float64),
+            vertices=gltf_vertices,
             faces=np.asarray(layer.faces, dtype=np.int32),
             vertex_colors=np.tile(
                 _hex_to_rgba(layer.color_hex),
@@ -79,6 +115,8 @@ def export_layers_to_gltf(
                 "extent_y_max": extent.y_max,
                 "extent_z_min": extent.z_min,
                 "extent_z_max": extent.z_max,
+                "vertical_exaggeration": float(vertical_exaggeration),
+                "up_axis": "Y" if swap_to_y_up else "Z",
             }
         )
 
@@ -124,6 +162,40 @@ def export_layers_to_gltf(
         raise MeshExportError(f"trimesh failed to export scene: {exc}") from exc
 
     return output_path
+
+
+def _model_to_gltf_coords(
+    vertices: np.ndarray,
+    *,
+    vertical_exaggeration: float,
+    swap_to_y_up: bool,
+) -> np.ndarray:
+    """Transform model-coord vertices for storage in the GLB.
+
+    Model coords use ``+Z`` up (depth grows negative). When
+    ``swap_to_y_up`` is True we rotate -90° around the X axis so the
+    geological stack lines up with glTF's ``+Y`` up convention:
+
+    ``(x, y, z)_model  →  (x, z * v_exag, -y)_gltf``
+
+    The optional vertical exaggeration scales the new ``y`` (up) axis
+    so a thin subsurface column stays readable when the dock auto-fits
+    the bounding box.
+    """
+
+    if vertices.size == 0:
+        return vertices.astype(np.float64, copy=False)
+
+    if not swap_to_y_up:
+        out = vertices.astype(np.float64, copy=True)
+        out[:, 2] *= vertical_exaggeration
+        return out
+
+    out = np.empty_like(vertices, dtype=np.float64)
+    out[:, 0] = vertices[:, 0]
+    out[:, 1] = vertices[:, 2] * vertical_exaggeration
+    out[:, 2] = -vertices[:, 1]
+    return out
 
 
 def _hex_to_rgba(value: str) -> np.ndarray:

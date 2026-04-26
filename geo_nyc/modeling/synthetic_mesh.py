@@ -95,6 +95,8 @@ def build_synthetic_layers(
     relief = _bedrock_relief(xv, yv, extent, amplitude=bedrock_relief_m, rng=rng)
 
     layers: list[LayerMesh] = []
+    # Floor of the deepest slab is the extent floor.
+    prev_top_z: np.ndarray = np.full_like(xv, extent.z_min)
     for index, event in enumerate(rock_events):
         rock = rock_lookup.get(_rock_id_of(event))
         if rock is None:
@@ -105,16 +107,19 @@ def build_synthetic_layers(
         )
 
         # z grows from extent.z_min (oldest, deepest) up to extent.z_max.
-        base_z = extent.z_min + index * layer_thickness
+        base_z = extent.z_min + (index + 1) * layer_thickness
         # Add the same soft relief to every layer so they stay parallel
         # (a uniform relief means uniform thickness — clean visual).
-        z_grid = base_z + relief
+        top_z = base_z + relief
         # Top layer sits *exactly* at the ground surface so the user can
         # tell where the surface is.
         if index == n_layers - 1:
-            z_grid = np.full_like(z_grid, extent.z_max)
+            top_z = np.full_like(top_z, extent.z_max)
+        # Younger surface should never dip below the older floor it
+        # rests on — clamp before we feed it to the slab builder.
+        top_z = np.maximum(top_z, prev_top_z + 0.05)
 
-        vertices, faces = _grid_to_mesh(xv, yv, z_grid)
+        vertices, faces = grid_slab_to_mesh(xv, yv, top_z, prev_top_z)
         layers.append(
             LayerMesh(
                 surface_id=event.id,
@@ -125,6 +130,7 @@ def build_synthetic_layers(
                 faces=faces,
             )
         )
+        prev_top_z = top_z
     return layers
 
 
@@ -196,21 +202,48 @@ def _bedrock_relief(
     return bowl + noise
 
 
-def _grid_to_mesh(
-    xv: np.ndarray, yv: np.ndarray, zv: np.ndarray
+def grid_slab_to_mesh(
+    xv: np.ndarray,
+    yv: np.ndarray,
+    top_z: np.ndarray,
+    bottom_z: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Triangulate a structured (x, y, z) grid.
+    """Build a closed-prism mesh for one formation's slab.
 
-    Each grid cell becomes two triangles. Vertex order is row-major, so
-    the index of grid point ``(j, i)`` is ``j * nx + i``.
+    A slab is a "stratigraphic block": top surface (sampled from
+    ``top_z``) + parallel bottom surface (sampled from ``bottom_z``) +
+    four side walls knitting the two rims together. The result is a
+    watertight triangulated solid the GLB pipeline can render with
+    consistent normals (and which actually has *thickness* in z, so
+    layers don't collapse into a paper-thin sheet when the mesh is
+    auto-fit to a bounding box in three.js).
+
+    All four input arrays must share shape ``(ny, nx)``.
     """
 
-    ny, nx = xv.shape
-    vertices = np.column_stack(
-        [xv.ravel(), yv.ravel(), zv.ravel()]
-    ).astype(np.float64, copy=False)
+    if xv.shape != yv.shape or xv.shape != top_z.shape or xv.shape != bottom_z.shape:
+        raise ValueError(
+            "grid_slab_to_mesh requires xv, yv, top_z and bottom_z to share shape; "
+            f"got xv={xv.shape}, yv={yv.shape}, top_z={top_z.shape}, bottom_z={bottom_z.shape}"
+        )
 
-    faces = np.empty(((ny - 1) * (nx - 1) * 2, 3), dtype=np.int32)
+    ny, nx = xv.shape
+    n_grid = nx * ny
+
+    top_verts = np.column_stack(
+        [xv.ravel(), yv.ravel(), top_z.ravel()]
+    ).astype(np.float64, copy=False)
+    bot_verts = np.column_stack(
+        [xv.ravel(), yv.ravel(), bottom_z.ravel()]
+    ).astype(np.float64, copy=False)
+    vertices = np.vstack([top_verts, bot_verts])
+
+    cells = (ny - 1) * (nx - 1)
+    n_top = cells * 2
+    n_bot = cells * 2
+    n_side = ((nx - 1) + (ny - 1)) * 2 * 2  # two walls per axis, 2 tris per cell
+    faces = np.empty((n_top + n_bot + n_side, 3), dtype=np.int32)
+
     fi = 0
     for j in range(ny - 1):
         for i in range(nx - 1):
@@ -218,9 +251,67 @@ def _grid_to_mesh(
             v10 = j * nx + (i + 1)
             v01 = (j + 1) * nx + i
             v11 = (j + 1) * nx + (i + 1)
+            # Top: CCW when viewed from +z (outward normal up).
             faces[fi] = (v00, v10, v11)
             faces[fi + 1] = (v00, v11, v01)
             fi += 2
+
+    bot_offset = n_grid
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            v00 = bot_offset + j * nx + i
+            v10 = bot_offset + j * nx + (i + 1)
+            v01 = bot_offset + (j + 1) * nx + i
+            v11 = bot_offset + (j + 1) * nx + (i + 1)
+            # Bottom: reverse winding so the outward normal points down.
+            faces[fi] = (v00, v11, v10)
+            faces[fi + 1] = (v00, v01, v11)
+            fi += 2
+
+    # South wall (j = 0): outward normal points -y.
+    j = 0
+    for i in range(nx - 1):
+        t0 = j * nx + i
+        t1 = j * nx + (i + 1)
+        b0 = bot_offset + j * nx + i
+        b1 = bot_offset + j * nx + (i + 1)
+        faces[fi] = (t0, b0, b1)
+        faces[fi + 1] = (t0, b1, t1)
+        fi += 2
+
+    # North wall (j = ny - 1): outward normal points +y.
+    j = ny - 1
+    for i in range(nx - 1):
+        t0 = j * nx + i
+        t1 = j * nx + (i + 1)
+        b0 = bot_offset + j * nx + i
+        b1 = bot_offset + j * nx + (i + 1)
+        faces[fi] = (t0, t1, b1)
+        faces[fi + 1] = (t0, b1, b0)
+        fi += 2
+
+    # West wall (i = 0): outward normal points -x.
+    i = 0
+    for j in range(ny - 1):
+        t0 = j * nx + i
+        t1 = (j + 1) * nx + i
+        b0 = bot_offset + j * nx + i
+        b1 = bot_offset + (j + 1) * nx + i
+        faces[fi] = (t0, t1, b1)
+        faces[fi + 1] = (t0, b1, b0)
+        fi += 2
+
+    # East wall (i = nx - 1): outward normal points +x.
+    i = nx - 1
+    for j in range(ny - 1):
+        t0 = j * nx + i
+        t1 = (j + 1) * nx + i
+        b0 = bot_offset + j * nx + i
+        b1 = bot_offset + (j + 1) * nx + i
+        faces[fi] = (t0, b0, b1)
+        faces[fi + 1] = (t0, b1, t1)
+        fi += 2
+
     return vertices, faces
 
 
@@ -229,4 +320,5 @@ __all__ = [
     "LayerMesh",
     "ModelExtent",
     "build_synthetic_layers",
+    "grid_slab_to_mesh",
 ]

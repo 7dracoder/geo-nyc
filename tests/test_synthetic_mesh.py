@@ -75,28 +75,41 @@ def test_builder_returns_one_layer_per_rock_event() -> None:
     }
 
 
+def _top_z_of_slab(layer: LayerMesh, nx: int, ny: int) -> np.ndarray:
+    """First ``nx * ny`` verts of a slab are the top surface."""
+
+    return layer.vertices[: nx * ny, 2]
+
+
 def test_builder_orders_layers_oldest_first() -> None:
     """Stratigraphic order: oldest event sits at the deepest base z."""
 
-    layers = build_synthetic_layers(_three_layer_program(), _extent())
+    res = GridResolution()
+    layers = build_synthetic_layers(_three_layer_program(), _extent(), resolution=res)
     assert [layer.surface_id for layer in layers] == [
         "D_SCHIST", "D_MARBLE", "D_TILL",
     ]
-    # Deepest base must be lower than the layer above it (modulo
-    # bedrock relief — which is bounded by the default amplitude 8 m
-    # and definitely smaller than the 50/3 ≈ 16.7 m layer thickness).
-    schist_min_z = layers[0].vertices[:, 2].min()
-    marble_min_z = layers[1].vertices[:, 2].min()
-    assert schist_min_z < marble_min_z
+    # Top of the deepest formation must be below the top of the one
+    # above it (modulo bedrock relief, bounded by the default 8 m
+    # amplitude and well under the 50/3 ≈ 16.7 m layer thickness).
+    schist_top_min = _top_z_of_slab(layers[0], res.nx, res.ny).min()
+    marble_top_min = _top_z_of_slab(layers[1], res.nx, res.ny).min()
+    assert schist_top_min < marble_top_min
 
 
 def test_topmost_layer_is_pinned_to_ground_surface() -> None:
     extent = _extent()
-    layers = build_synthetic_layers(_three_layer_program(), extent)
+    res = GridResolution()
+    layers = build_synthetic_layers(_three_layer_program(), extent, resolution=res)
     top = layers[-1]
-    # The contract says the topmost layer's z is *exactly* extent.z_max
-    # so the frontend can find the ground surface deterministically.
-    np.testing.assert_allclose(top.vertices[:, 2], extent.z_max, atol=1e-9)
+    # The topmost slab's *top* surface must be pinned exactly at
+    # ``extent.z_max`` so the frontend can find the ground surface
+    # deterministically.
+    np.testing.assert_allclose(
+        _top_z_of_slab(top, res.nx, res.ny),
+        extent.z_max,
+        atol=1e-9,
+    )
 
 
 def test_grid_resolution_drives_vertex_and_face_counts() -> None:
@@ -104,9 +117,10 @@ def test_grid_resolution_drives_vertex_and_face_counts() -> None:
     layers = build_synthetic_layers(
         _three_layer_program(), _extent(), resolution=res
     )
-    expected_verts = res.nx * res.ny
-    # Each grid cell becomes 2 triangles, so faces = 2 * (nx-1) * (ny-1).
-    expected_faces = 2 * (res.nx - 1) * (res.ny - 1)
+    # Closed slab = top grid + bottom grid + four side walls.
+    expected_verts = 2 * res.nx * res.ny
+    cells = (res.nx - 1) * (res.ny - 1)
+    expected_faces = 4 * cells + 4 * ((res.nx - 1) + (res.ny - 1))
     for layer in layers:
         assert layer.vertex_count() == expected_verts
         assert layer.face_count() == expected_faces
@@ -215,24 +229,31 @@ def test_dated_events_sort_above_undated_ones() -> None:
 
 
 def test_bedrock_relief_amplitude_is_bounded() -> None:
-    """Bedrock vertices vary around the base z by at most ~1.05 *
-    amplitude (cosine bowl + small noise, both bounded)."""
+    """The bedrock slab's *top* (=top of the deepest formation) varies
+    around its nominal base z by at most ~1.5 × amplitude (cosine bowl
+    + small noise, both bounded)."""
 
     extent = _extent()
+    res = GridResolution()
     amplitude = 4.0
     layers = build_synthetic_layers(
         _three_layer_program(),
         extent,
+        resolution=res,
         bedrock_relief_m=amplitude,
         seed=1,
     )
     bedrock = layers[0]
-    base_z = extent.z_min
-    z = bedrock.vertices[:, 2]
-    # bowl ∈ [-amp, 0]; noise stddev = amp*0.05. So z - base_z ∈
-    # roughly [-1.5 * amp, +0.5 * amp]. Clamp to a generous envelope.
-    assert (z - base_z).min() >= -2 * amplitude
-    assert (z - base_z).max() <= amplitude
+    # Top of the deepest slab = bedrock surface; nominal base is one
+    # ``layer_thickness`` above ``extent.z_min`` for a 3-layer extent.
+    n_layers = 3
+    layer_thickness = extent.depth / n_layers
+    nominal_top_z = extent.z_min + layer_thickness
+    z = _top_z_of_slab(bedrock, res.nx, res.ny)
+    # bowl ∈ [-amp, 0]; noise stddev = amp*0.05. So z - nominal ∈
+    # roughly [-amp, +0.5 * amp]. Allow a generous safety margin.
+    assert (z - nominal_top_z).min() >= -2 * amplitude
+    assert (z - nominal_top_z).max() <= amplitude
 
 
 def test_color_falls_back_to_grey_for_unknown_rock_type() -> None:

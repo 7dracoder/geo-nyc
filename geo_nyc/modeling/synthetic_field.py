@@ -148,13 +148,22 @@ def build_depth_to_bedrock_field(
 def _resample_layer_to_grid(
     layer: LayerMesh, extent: ModelExtent, res: GridResolution
 ) -> np.ndarray:
-    """Resample a structured-grid layer back onto a regular ``(ny, nx)`` array."""
+    """Resample a structured-grid layer back onto a regular ``(ny, nx)`` array.
+
+    Handles two layouts:
+    * **Legacy top-only surface** (``nx * ny`` vertices): reshape directly.
+    * **Closed slab** (``2 * nx * ny`` vertices, top half then bottom):
+      the *top* of the slab is the geological surface we care about for
+      depth-to-bedrock, so we slice the first half before reshaping.
+    """
 
     expected = res.nx * res.ny
-    if layer.vertices.shape[0] != expected:
-        return _nearest_resample(layer, extent, res)
-    z = layer.vertices[:, 2].reshape(res.ny, res.nx)
-    return z
+    n_verts = layer.vertices.shape[0]
+    if n_verts == expected:
+        return layer.vertices[:, 2].reshape(res.ny, res.nx)
+    if n_verts == 2 * expected:
+        return layer.vertices[:expected, 2].reshape(res.ny, res.nx)
+    return _nearest_resample(layer, extent, res)
 
 
 def _nearest_resample(
