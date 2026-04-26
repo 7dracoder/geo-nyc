@@ -9,12 +9,13 @@ Part 3 implementation for the Urban Subsurface AI blueprint (Member C): NYC Open
   - Filters borough codes to `1,2,3` by default (Manhattan, Bronx, Brooklyn).
   - Dissolves AOI and clips/simplifies additional contextual layers.
   - Pulls real contextual layers including hurricane evacuation zones and water-included borough boundaries.
-  - Writes `web/public/layers/*.geojson` and `web/public/layers/manifest.json`.
+  - Writes canonical outputs to `genyc_data/layers/*.geojson` and `genyc_data/layers/manifest.json`.
+  - Mirrors layer assets to `web/public/layers/` for frontend static serving.
 - `scripts/build_field.py`
-  - Uses `data/fields/depth.npz` when real Part 2 depth fields are available.
+  - Uses `genyc_data/fields/depth.npz` when real Part 2 depth fields are available.
   - If depth is missing/stub, generates a real-data proxy field from AOI + hazard layers (no synthetic hardcoded surface).
   - Fills sparse values and smooths the field.
-  - Writes `data/fields/cost_grid.npz`, `data/fields/cost_raster_meta.json`, and `web/public/layers/depth_contours.geojson`.
+  - Writes `genyc_data/fields/cost_grid.npz`, `genyc_data/fields/cost_raster_meta.json`, and `genyc_data/layers/depth_contours.geojson`.
 - FastAPI routes:
   - `GET /api/layers` reads and returns manifest layers.
   - `POST /api/optimize` performs fast 1D grid-search optimization from precomputed field data (no GemPy call at runtime).
@@ -23,11 +24,11 @@ Part 3 implementation for the Urban Subsurface AI blueprint (Member C): NYC Open
 
 ## File contracts (Part 3)
 
-- `web/public/layers/manifest.json`
-- `web/public/layers/*.geojson`
-- `data/fields/depth.npz` + `data/fields/depth_meta.json`
-- `data/fields/cost_grid.npz` + `data/fields/cost_raster_meta.json`
-- `data/source_pdfs/sources.json` + `data/source_pdfs/*.pdf` (inputs for Part 2 ingestion)
+- `genyc_data/layers/manifest.json`
+- `genyc_data/layers/*.geojson`
+- `genyc_data/fields/depth.npz` + `genyc_data/fields/depth_meta.json`
+- `genyc_data/fields/cost_grid.npz` + `genyc_data/fields/cost_raster_meta.json`
+- `genyc_data/source_pdfs/sources.json` + `genyc_data/source_pdfs/*.pdf` (inputs for Part 2 ingestion)
 
 ## Install
 
@@ -38,20 +39,20 @@ pip install -r requirements.txt
 ## Run scripts
 
 ```bash
-python scripts/fetch_open_data.py --output-dir web/public --boro-codes 1,2,3
+python scripts/fetch_open_data.py --output-dir genyc_data --boro-codes 1,2,3
 python scripts/build_field.py
 ```
 
 Real PDF inputs for Part 2 ingestion live in:
 
 ```bash
-data/source_pdfs/sources.json
+genyc_data/source_pdfs/sources.json
 ```
 
 Queens swap:
 
 ```bash
-python scripts/fetch_open_data.py --output-dir web/public --boro-codes 1,2,4
+python scripts/fetch_open_data.py --output-dir genyc_data --boro-codes 1,2,4
 ```
 
 ## Run API
@@ -69,11 +70,11 @@ curl -X POST http://127.0.0.1:8000/api/optimize -H "Content-Type: application/js
 
 ## Integration handoff
 
-- Frontend consumes `web/public/layers/manifest.json` and `POST /api/optimize`.
-- Part 2 drops in `data/fields/depth.npz` + `data/fields/depth_meta.json` with `source: gempy`.
+- Frontend consumes `genyc_data/layers/manifest.json` (or mirrored `web/public/layers/manifest.json`) and `POST /api/optimize`.
+- Part 2 drops in `genyc_data/fields/depth.npz` + `genyc_data/fields/depth_meta.json` with `source: gempy`.
 - Rebuild command after new depth: `python scripts/build_field.py`.
 
 ## Current status
 
-- Depth field source: `data/fields/depth_meta.json` -> `source: gempy`.
+- Depth field source: `genyc_data/fields/depth_meta.json` -> `source: gempy`.
 - Last validated flow: `fetch_open_data.py` -> `generate_gempy_depth.py` -> `build_field.py` -> `/api/layers` + `/api/optimize`.

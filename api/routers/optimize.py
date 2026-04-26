@@ -12,10 +12,8 @@ from pydantic import BaseModel, Field
 router = APIRouter(prefix="/api", tags=["optimize"])
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-FIELDS_DIR = REPO_ROOT / "data" / "fields"
-DEFAULT_GRID_PATH = FIELDS_DIR / "cost_grid.npz"
-DEFAULT_META_PATH = FIELDS_DIR / "cost_raster_meta.json"
-FALLBACK_DEPTH_PATH = FIELDS_DIR / "depth.npz"
+PRIMARY_FIELDS_DIR = REPO_ROOT / "genyc_data" / "fields"
+LEGACY_FIELDS_DIR = REPO_ROOT / "data" / "fields"
 
 
 class OptimizeParams(BaseModel):
@@ -83,17 +81,24 @@ def _valid_grid_values(bundle: GridBundle) -> np.ndarray:
 
 @lru_cache(maxsize=1)
 def load_cost_grid() -> GridBundle:
-    if DEFAULT_GRID_PATH.exists():
-        return _load_grid_from_npz(DEFAULT_GRID_PATH)
-    if FALLBACK_DEPTH_PATH.exists():
-        return _load_grid_from_npz(FALLBACK_DEPTH_PATH)
-    raise FileNotFoundError("Neither cost_grid.npz nor depth.npz is present in data/fields")
+    for fields_dir in (PRIMARY_FIELDS_DIR, LEGACY_FIELDS_DIR):
+        grid_path = fields_dir / "cost_grid.npz"
+        depth_path = fields_dir / "depth.npz"
+        if grid_path.exists():
+            return _load_grid_from_npz(grid_path)
+        if depth_path.exists():
+            return _load_grid_from_npz(depth_path)
+    raise FileNotFoundError(
+        f"Neither cost_grid.npz nor depth.npz is present in {PRIMARY_FIELDS_DIR} or {LEGACY_FIELDS_DIR}"
+    )
 
 
 def _extract_meta() -> dict[str, Any]:
-    if DEFAULT_META_PATH.exists():
-        with DEFAULT_META_PATH.open("r", encoding="utf-8") as f:
-            return json.load(f)
+    for fields_dir in (PRIMARY_FIELDS_DIR, LEGACY_FIELDS_DIR):
+        meta_path = fields_dir / "cost_raster_meta.json"
+        if meta_path.exists():
+            with meta_path.open("r", encoding="utf-8") as f:
+                return json.load(f)
     return {
         "crs": "EPSG:4326",
         "units": "meters_below_surface",

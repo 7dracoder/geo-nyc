@@ -76,7 +76,7 @@ def _surface_depth_grid(vertices: np.ndarray, bbox: list[float], resolution: int
 
 
 def run() -> None:
-    out_dir = REPO_ROOT / "data" / "fields"
+    out_dir = REPO_ROOT / "genyc_data" / "fields"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     depth_meta_path = out_dir / "depth_meta.json"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -123,7 +124,14 @@ def _layer_entry(
     }
 
 
-def run(output_dir: Path, boro_codes: list[int]) -> Path:
+def _mirror_layers(src_layers_dir: Path, dst_layers_dir: Path) -> None:
+    dst_layers_dir.mkdir(parents=True, exist_ok=True)
+    for src in src_layers_dir.glob("*"):
+        if src.is_file():
+            shutil.copy2(src, dst_layers_dir / src.name)
+
+
+def run(output_dir: Path, boro_codes: list[int], mirror_web_public_dir: Path | None = None) -> Path:
     layers_dir = output_dir / "layers"
     layers_dir.mkdir(parents=True, exist_ok=True)
 
@@ -186,6 +194,8 @@ def run(output_dir: Path, boro_codes: list[int]) -> Path:
 
     manifest_path = layers_dir / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    if mirror_web_public_dir is not None:
+        _mirror_layers(layers_dir, mirror_web_public_dir / "layers")
     return manifest_path
 
 
@@ -193,8 +203,13 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch and clip NYC Open Data layers.")
     parser.add_argument(
         "--output-dir",
-        default="web/public",
+        default="genyc_data",
         help="Directory that will receive the `layers/` folder.",
+    )
+    parser.add_argument(
+        "--mirror-web-public-dir",
+        default="web/public",
+        help="Optional directory to mirror generated layers for frontend static serving.",
     )
     parser.add_argument(
         "--boro-codes",
@@ -207,5 +222,6 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     codes = [int(item.strip()) for item in args.boro_codes.split(",") if item.strip()]
-    manifest_path = run(Path(args.output_dir), codes)
+    mirror_dir = Path(args.mirror_web_public_dir) if args.mirror_web_public_dir else None
+    manifest_path = run(Path(args.output_dir), codes, mirror_web_public_dir=mirror_dir)
     print(f"Manifest written to: {manifest_path}")

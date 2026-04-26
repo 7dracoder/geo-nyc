@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -195,6 +196,7 @@ def run(
     hazard_geojson: Path,
     grid_resolution: int,
     sigma: float,
+    mirror_web_public_dir: Path | None = None,
 ) -> None:
     meta_in = _load_meta(depth_meta_json)
     use_proxy = (not depth_npz.exists()) or _is_stub_source(meta_in)
@@ -226,6 +228,13 @@ def run(
     np.savez_compressed(out_cost_npz, grid=smoothed, x=x, y=y, mask=valid_mask)
     _build_contours_geojson(smoothed, x, y, out_contours_geojson)
     _upsert_contour_layer(layers_manifest_json, "/layers/depth_contours.geojson")
+    if mirror_web_public_dir is not None:
+        mirror_layers_dir = mirror_web_public_dir / "layers"
+        mirror_layers_dir.mkdir(parents=True, exist_ok=True)
+        if out_contours_geojson.exists():
+            shutil.copy2(out_contours_geojson, mirror_layers_dir / out_contours_geojson.name)
+        if layers_manifest_json.exists():
+            shutil.copy2(layers_manifest_json, mirror_layers_dir / layers_manifest_json.name)
 
     meta_out = dict(meta_in)
     meta_out.update(
@@ -243,14 +252,19 @@ def run(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build smoothed field and contours for optimization.")
-    parser.add_argument("--depth-npz", default="data/fields/depth.npz")
-    parser.add_argument("--depth-meta-json", default="data/fields/depth_meta.json")
-    parser.add_argument("--out-cost-npz", default="data/fields/cost_grid.npz")
-    parser.add_argument("--out-meta-json", default="data/fields/cost_raster_meta.json")
-    parser.add_argument("--out-contours-geojson", default="web/public/layers/depth_contours.geojson")
-    parser.add_argument("--layers-manifest-json", default="web/public/layers/manifest.json")
-    parser.add_argument("--aoi-geojson", default="web/public/layers/aoi.geojson")
-    parser.add_argument("--hazard-geojson", default="web/public/layers/hurricane_evacuation_zones.geojson")
+    parser.add_argument("--depth-npz", default="genyc_data/fields/depth.npz")
+    parser.add_argument("--depth-meta-json", default="genyc_data/fields/depth_meta.json")
+    parser.add_argument("--out-cost-npz", default="genyc_data/fields/cost_grid.npz")
+    parser.add_argument("--out-meta-json", default="genyc_data/fields/cost_raster_meta.json")
+    parser.add_argument("--out-contours-geojson", default="genyc_data/layers/depth_contours.geojson")
+    parser.add_argument("--layers-manifest-json", default="genyc_data/layers/manifest.json")
+    parser.add_argument("--aoi-geojson", default="genyc_data/layers/aoi.geojson")
+    parser.add_argument("--hazard-geojson", default="genyc_data/layers/hurricane_evacuation_zones.geojson")
+    parser.add_argument(
+        "--mirror-web-public-dir",
+        default="web/public",
+        help="Optional directory to mirror generated manifest/contours for frontend static serving.",
+    )
     parser.add_argument("--grid-resolution", type=int, default=160)
     parser.add_argument("--sigma", type=float, default=1.6, help="Gaussian smoothing sigma.")
     return parser.parse_args()
@@ -269,5 +283,6 @@ if __name__ == "__main__":
         hazard_geojson=Path(args.hazard_geojson),
         grid_resolution=args.grid_resolution,
         sigma=args.sigma,
+        mirror_web_public_dir=Path(args.mirror_web_public_dir) if args.mirror_web_public_dir else None,
     )
     print("Field and contours generated successfully.")

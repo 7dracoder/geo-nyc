@@ -9,6 +9,6 @@
   "resolution_m": 50,
   "units": "meters_below_surface",
   "source": "gempy",
-  "generated_at": "2026-04-26T17:44:30.293738+00:00",
+  "generated_at": "2026-04-26T18:07:16.336315+00:00",
   "method": "geo-lm gempy model -> mesh vertices -> depth interpolation"
 }
