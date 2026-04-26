@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Layer, Source } from "react-map-gl/maplibre";
+import { apiBase } from "@/lib/api";
 
 /** Shape returned by `GET /layers/manifest.json` (Part 3 data layer). */
 type ManifestLayer = {
@@ -34,7 +35,22 @@ const SKIP_IDS: ReadonlySet<string> = new Set([
   "borough_boundaries_water",
 ]);
 
-const MANIFEST_URL = "/layers/manifest.json";
+const STATIC_MANIFEST_URL = "/layers/manifest.json";
+
+/** Map manifest `/layers/*.geojson` paths to FastAPI `GET /static/layers/*`. */
+function resolveGeojsonUrl(geojsonPath: string, origin: string): string {
+  if (geojsonPath.startsWith("http://") || geojsonPath.startsWith("https://")) {
+    return geojsonPath;
+  }
+  if (geojsonPath.startsWith("/layers/")) {
+    const name = geojsonPath.slice("/layers/".length);
+    return `${origin}/static/layers/${name}`;
+  }
+  if (geojsonPath.startsWith("/")) {
+    return `${origin}${geojsonPath}`;
+  }
+  return geojsonPath;
+}
 
 export function ManifestOverlays() {
   const [layers, setLayers] = useState<ManifestLayer[]>([]);
@@ -42,14 +58,32 @@ export function ManifestOverlays() {
   useEffect(() => {
     let cancelled = false;
     const ac = new AbortController();
-    fetch(MANIFEST_URL, { signal: ac.signal })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`manifest ${r.status}`);
-        return (await r.json()) as Manifest;
-      })
-      .then((m) => {
+    const base = apiBase();
+
+    const load = async (): Promise<ManifestLayer[]> => {
+      if (base) {
+        try {
+          const r = await fetch(`${base}/api/layers`, { signal: ac.signal });
+          if (!r.ok) throw new Error(`api/layers ${r.status}`);
+          const m = (await r.json()) as Manifest;
+          return (m.layers ?? []).map((layer) => ({
+            ...layer,
+            geojson_path: resolveGeojsonUrl(layer.geojson_path, base),
+          }));
+        } catch {
+          // API down or older server: fall back to Next static manifest.
+        }
+      }
+      const r = await fetch(STATIC_MANIFEST_URL, { signal: ac.signal });
+      if (!r.ok) throw new Error(`manifest ${r.status}`);
+      const m = (await r.json()) as Manifest;
+      return m.layers ?? [];
+    };
+
+    load()
+      .then((raw) => {
         if (cancelled) return;
-        const filtered = (m.layers ?? []).filter(
+        const filtered = raw.filter(
           (l) => l && !SKIP_IDS.has(l.id) && (l.type === "fill" || l.type === "line"),
         );
         setLayers(filtered);

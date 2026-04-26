@@ -48,6 +48,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 - **Address:** Nominatim (`src/lib/geocode.ts`) with NYC-biased search; autocomplete and submit. Attribution: OpenStreetMap link in the panel.
 - **What-if:** Debounced calls to `POST /api/optimize` when `NEXT_PUBLIC_API_BASE_URL` is set; otherwise a local mock. Add `?mock=1` to force the mock even if a base URL is set (`src/lib/api.ts`).
+- **Part 3 overlays:** `ManifestOverlays.tsx` loads the layer list from `GET {API}/api/layers` when `NEXT_PUBLIC_API_BASE_URL` is set (GeoJSON URLs are rewritten to `{API}/static/layers/...`). If that fails or the env is unset, it falls back to static `public/layers/manifest.json`.
 
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 
@@ -64,7 +65,9 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 | Variable | Purpose |
 |----------|---------|
-| `NEXT_PUBLIC_API_BASE_URL` | Origin for the optimizer API (no trailing slash). If empty, the what-if panel uses the mock. |
+| `NEXT_PUBLIC_API_BASE_URL` | Origin for the FastAPI backend (no trailing slash). Powers `POST /api/optimize`, `GET /api/layers` (map overlays), and related static GeoJSON under `/static/layers/`. If empty, what-if uses the mock and overlays read only `public/layers/manifest.json`. |
+
+Backend CORS must allow your web origin (set `GEO_NYC_CORS_ORIGINS` and/or `GEO_NYC_CORS_ORIGIN_REGEX` when the Python API is not only on localhost). See `geo_nyc/config.py`.
 
 ## Project layout (selected)
 
