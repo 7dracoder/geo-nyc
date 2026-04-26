@@ -8,9 +8,11 @@ Part 3 implementation for the Urban Subsurface AI blueprint (Member C): NYC Open
   - Downloads borough boundaries from NYC Open Data.
   - Filters borough codes to `1,2,3` by default (Manhattan, Bronx, Brooklyn).
   - Dissolves AOI and clips/simplifies additional contextual layers.
+  - Pulls real contextual layers including hurricane evacuation zones and water-included borough boundaries.
   - Writes `web/public/layers/*.geojson` and `web/public/layers/manifest.json`.
 - `scripts/build_field.py`
-  - Reads `data/fields/depth.npz`.
+  - Uses `data/fields/depth.npz` when real Part 2 depth fields are available.
+  - If depth is missing/stub, generates a real-data proxy field from AOI + hazard layers (no synthetic hardcoded surface).
   - Fills sparse values and smooths the field.
   - Writes `data/fields/cost_grid.npz`, `data/fields/cost_raster_meta.json`, and `web/public/layers/depth_contours.geojson`.
 - FastAPI routes:
@@ -25,6 +27,7 @@ Part 3 implementation for the Urban Subsurface AI blueprint (Member C): NYC Open
 - `web/public/layers/*.geojson`
 - `data/fields/depth.npz` + `data/fields/depth_meta.json`
 - `data/fields/cost_grid.npz` + `data/fields/cost_raster_meta.json`
+- `data/source_pdfs/sources.json` + `data/source_pdfs/*.pdf` (inputs for Part 2 ingestion)
 
 ## Install
 
@@ -37,6 +40,12 @@ pip install -r requirements.txt
 ```bash
 python scripts/fetch_open_data.py --output-dir web/public --boro-codes 1,2,3
 python scripts/build_field.py
+```
+
+Real PDF inputs for Part 2 ingestion live in:
+
+```bash
+data/source_pdfs/sources.json
 ```
 
 Queens swap:

@@ -35,6 +35,14 @@ ADDITIONAL_LAYER_SPECS = [
         legend_color="#4C78A8",
         opacity=0.35,
     ),
+    LayerSpec(
+        layer_id="borough_boundaries_water",
+        title="Borough Boundaries (Water Included)",
+        layer_type="line",
+        source_url="https://data.cityofnewyork.us/resource/wh2p-dxnf.geojson?$limit=5000",
+        legend_color="#1D4ED8",
+        opacity=0.65,
+    ),
 ]
 
 

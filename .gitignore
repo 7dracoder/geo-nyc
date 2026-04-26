@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.venv312/
 .pytest_cache/
 *.log
+temp_geo_lm/
