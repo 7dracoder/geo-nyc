@@ -1,0 +1,1200 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <origin>Laura M. DeMott</origin>
+        <origin>Frederick Stumm</origin>
+        <origin>Michael Como</origin>
+        <origin>Jason Finkelstein</origin>
+        <pubdate>20230525</pubdate>
+        <title>Geospatial data for bedrock elevation and overburden thickness maps of the Five Boroughs, New York City, New York</title>
+        <geoform>raster digital data; .shp (shapefile)</geoform>
+        <pubinfo>
+          <pubplace>Reston, VA</pubplace>
+          <publish>U.S. Geological Survey</publish>
+        </pubinfo>
+        <onlink>https://doi.org/10.5066/P911CSI3</onlink>
+        <lworkcit>
+          <citeinfo>
+            <origin>Laura M. DeMott</origin>
+            <origin>Frederick Stumm</origin>
+            <origin>Jason Finkelstein</origin>
+            <pubdate>2023</pubdate>
+            <title>Bedrock-surface elevation and overburden thickness maps of the five boroughs, New York City, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>U.S. Geological Survey Data Report</sername>
+              <issue>1176</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>U.S. Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://doi.org/10.3133/dr1176</onlink>
+          </citeinfo>
+        </lworkcit>
+      </citeinfo>
+    </citation>
+    <descript>
+      <abstract>Using a combination of public and proprietary historical construction test borings, recent exploration drilling, USGS observation wells, outcrops, and seismic measurements, a series of geospatial overlays for bedrock elevation and overburden thickness were created for the Five Boroughs of New York City, New York. Rasters were interpolated from a point elevation data set and refined using published and interpretive bedrock contours, and interpreted glacial valleys and faults. Contours for bedrock elevation were generated at 100-ft contour intervals and smoothed.
+This data release includes shapefiles containing the input point elevation features and output contours, and rasters of interpolated bedrock elevation and overburden thickness surfaces.</abstract>
+      <purpose>To provide resource managers data on bedrock characteristics in New York City in order to more efficiently manage groundwater resources and evaluate geothermal heat pump construction projects.</purpose>
+    </descript>
+    <timeperd>
+      <timeinfo>
+        <rngdates>
+          <begdate>1905</begdate>
+          <enddate>2021</enddate>
+        </rngdates>
+      </timeinfo>
+      <current>ground condition</current>
+    </timeperd>
+    <status>
+      <progress>Complete</progress>
+      <update>None planned</update>
+    </status>
+    <spdom>
+      <bounding>
+        <westbc>-74.2629</westbc>
+        <eastbc>-72.2667</eastbc>
+        <northbc>41.1592</northbc>
+        <southbc>40.4957</southbc>
+      </bounding>
+    </spdom>
+    <keywords>
+      <theme>
+        <themekt>USGS Thesaurus</themekt>
+        <themekey>Bedrock geologic units</themekey>
+        <themekey>Groundwater</themekey>
+      </theme>
+      <theme>
+        <themekt>USGS Metadata Identifier</themekt>
+        <themekey>USGS:62154ed5d34e4465d409099f</themekey>
+      </theme>
+      <place>
+        <placekt>Geographic Names Information System (GNIS)</placekt>
+        <placekey>United States</placekey>
+        <placekey>New York</placekey>
+        <placekey>New York County</placekey>
+        <placekey>Bronx County</placekey>
+        <placekey>Richmond County</placekey>
+        <placekey>Kings County</placekey>
+        <placekey>Queens County</placekey>
+        <placekey>New York City</placekey>
+      </place>
+    </keywords>
+    <accconst>None.  Please see 'Distribution Info' for details.</accconst>
+    <useconst>None.  Users are advised to read the dataset's metadata thoroughly to understand appropriate use and data limitations.</useconst>
+    <ptcontac>
+      <cntinfo>
+        <cntperp>
+          <cntper>Laura M. DeMott</cntper>
+          <cntorg>U.S. Geological Survey, NORTHEAST REGION</cntorg>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>3075 Gracie Road</address>
+          <city>Cortland</city>
+          <state>NY</state>
+          <postal>13045</postal>
+          <country>US</country>
+        </cntaddr>
+        <cntvoice>n/a</cntvoice>
+        <cntemail>ldemott@contractor.usgs.gov</cntemail>
+      </cntinfo>
+    </ptcontac>
+    <datacred>New York City Department of Design and Construction</datacred>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>Values from the interpolated elevation raster were extracted for each input data point and compared to the original input value to assess reproducibility at each point. Average difference between the raster and the input data point value was 0.3 ft, with a median of 0.01 ft, standard deviation of 8.3 ft, and maximum difference of 106 ft.</attraccr>
+    </attracc>
+    <logic>No formal logical accuracy tests were conducted.</logic>
+    <complete>Data set is considered complete for the information presented, as described in the abstract. Users are advised to read the rest of the metadata record carefully for additional details.</complete>
+    <posacc>
+      <horizpa>
+        <horizpar>No formal positional accuracy tests were conducted.</horizpar>
+      </horizpa>
+      <vertacc>
+        <vertaccr>No formal positional accuracy tests were conducted.</vertaccr>
+      </vertacc>
+    </posacc>
+    <lineage>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>E.S. Asselstine</origin>
+            <origin>I.G. Grossman</origin>
+            <pubdate>1955</pubdate>
+            <title>The groundwater resources of Westchester County, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Bulletin</sername>
+              <issue>GW-35</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Albany, NY</pubplace>
+              <publish>New York State Water Power and Control Commission</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1995</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Asselstine and Grossman, 1955</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>C.A. Baskerville</origin>
+            <origin>D.G. Mose</origin>
+            <pubdate>1989</pubdate>
+            <title>The separation of the Hartland Formation and Ravenswood Granodiorite from the Fordham Gneiss at Cameron's Line in the New York City area</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Northeast Geology</sername>
+              <issue>11</issue>
+            </serinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1989</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Baskerville and Mose, 1989</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1937</pubdate>
+            <title>Earth and rock borings of New York City Borough of the Bronx</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New York City, NY</pubplace>
+              <publish>The Board of Estimate and Apportionment</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1937</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr 1937a</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1937</pubdate>
+            <title>Earth and rock borings of New York City Borough of the Brooklyn</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New York City, NY</pubplace>
+              <publish>The Board of Estimate and Apportionment</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1937</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr, 1937b</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1937</pubdate>
+            <title>Earth and rock borings of New York City Borough of the Queens</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New York City, NY</pubplace>
+              <publish>The Board of Estimate and Apportionment</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1937</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr 1937c</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1937</pubdate>
+            <title>Earth and rock borings of New York City Borough of the Richmond</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New York City, NY</pubplace>
+              <publish>The Board of Estimate and Apportionment</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1937</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr, 1937d</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1937</pubdate>
+            <title>Earth and Rock Borings of New York City Borough of Manhattan</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>New York City, NY</pubplace>
+              <publish>Department of Borough Works, Division of Design, Borough of Manhattan</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1937</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr, 1937e</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>T.W. Fluhr</origin>
+            <pubdate>1954</pubdate>
+            <title>Proposed Narrows Bridge, Foundation Studies, Geologic Profile</title>
+            <geoform>cross-section</geoform>
+            <othercit>Unpublished cross section</othercit>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1954</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Fluhr, 1954</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>William Herbert Hobbs</origin>
+            <pubdate>1905</pubdate>
+            <title>The configuration of the rock floor of Greater New York</title>
+            <geoform>publication</geoform>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>US Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://doi.org/10.3133/b270</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1905</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Hobbs, 1905</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>U.S. Geological Survey</origin>
+            <pubdate>2021</pubdate>
+            <title>National Water Information System</title>
+            <geoform>spreadsheet</geoform>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>U.S. Geological Survey</publish>
+            </pubinfo>
+            <onlink>http://waterdata.usgs.gov/nwis/</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>20220222</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>ground condition</srccurr>
+        </srctime>
+        <srccitea>NWIS</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>N.M. Perlmutter</origin>
+            <origin>Theodore Arnow</origin>
+            <pubdate>1953</pubdate>
+            <title>Ground water in Bronx, New York, and Richmond Counties with summary data on Kings and Queens Counties, New York City, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Bulletin</sername>
+              <issue>GW-32</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Albany, NY</pubplace>
+              <publish>New York State Water Power and Control Commission</publish>
+            </pubinfo>
+            <onlink>https://pubs.er.usgs.gov/publication/70040299</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1953</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Perlmutter and Arnow, 1953</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Keith J. Sjostrom</origin>
+            <origin>Rodney L. Leist</origin>
+            <pubdate>1997</pubdate>
+            <title>Waterborne seismic reflection study of the Kill Van Kull and Newark Bay shipping channels, New York/New Jersey</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Miscellaneous paper</sername>
+              <issue>GL-97-10</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>New York, NY</pubplace>
+              <publish>U.S. Army Corps of Engineers</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1997</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Sjostrom and Leist</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Douglas A. Smolensky</origin>
+            <origin>Herbert T. Buxton</origin>
+            <origin>Peter K. Shernoff</origin>
+            <pubdate>1990</pubdate>
+            <title>Hydrologic framework of Long Island, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Hydrologic Atlas</sername>
+              <issue>709</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>US Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://doi.org/10.3133/ha709</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1990</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>HA709</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Frederick Stumm</origin>
+            <pubdate>2001</pubdate>
+            <title>Hydrogeology and extent of saltwater intrusion of the Great Neck peninsula, Great Neck, Long Island, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Water-Resources Investigations Report</sername>
+              <issue>99-4280</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>US Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://doi.org/10.3133/wri994280</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>2001</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>WRI 99-4280</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Frederick Stumm</origin>
+            <origin>Andrew D. Lange</origin>
+            <origin>J.L. Candela</origin>
+            <pubdate>2002</pubdate>
+            <title>Hydrogeology and extent of saltwater intrusion on Manhasset Neck, Nassau County, New York</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Water-Resources Investigations Report</sername>
+              <issue>2000-4193</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Reston, VA</pubplace>
+              <publish>US Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://doi.org/10.3133/wri004193</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>2002</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>WRI 2000-4193</srccitea>
+        <srccontr>Input data points</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Scott D. Stanford</origin>
+            <pubdate>2002</pubdate>
+            <title>Surficial geology of the Yonkers and Nyack Quadrangles, Bergen County, New Jersey</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Open-File Map</sername>
+              <issue>50</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Trenton, NJ</pubplace>
+              <publish>New Jersey Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://www.state.nj.us/dep/njgs/pricelst/ofmap/ofm50.pdf</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>2002</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Stanford, 2002a</srccitea>
+        <srccontr>Bedrock elevation contour inputs</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Scott D. Stanford</origin>
+            <pubdate>2002</pubdate>
+            <title>Surficial geology of the Elizabeth quadrangle, Essex, Hudson, and Union counties, New Jersey</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Open-File Map</sername>
+              <issue>42</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Trenton, NJ</pubplace>
+              <publish>New Jersey Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://www.state.nj.us/dep/njgs/pricelst/ofmap/ofm42.pdf</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>2002</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Stanford, 2002b</srccitea>
+        <srccontr>Bedrock elevation contour inputs</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Scott D. Stanford</origin>
+            <pubdate>1995</pubdate>
+            <title>Surficial geology of the Jersey City quadrangle, Hudson and Essex counties, New Jersey</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Open-File Map</sername>
+              <issue>20</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Trenton, NJ</pubplace>
+              <publish>New Jersey Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://www.state.nj.us/dep/njgs/pricelst/ofmap/ofm20.pdf</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1995</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Stanford, 1995</srccitea>
+        <srccontr>Bedrock elevation contour inputs</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>Scott D. Stanford</origin>
+            <pubdate>1993</pubdate>
+            <title>Surficial geologic map of the Weehawken and Central Park quadrangles, Bergen, Hudson, and Passaic counties, New Jersey</title>
+            <geoform>publication</geoform>
+            <serinfo>
+              <sername>Open-File Map</sername>
+              <issue>13</issue>
+            </serinfo>
+            <pubinfo>
+              <pubplace>Trenton, NJ</pubplace>
+              <publish>New Jersey Geological Survey</publish>
+            </pubinfo>
+            <onlink>https://www.state.nj.us/dep/njgs/pricelst/ofmap/ofm13.pdf</onlink>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1993</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Stanford, 1993</srccitea>
+        <srccontr>Bedrock elevation contour inputs</srccontr>
+      </srcinfo>
+      <srcinfo>
+        <srccite>
+          <citeinfo>
+            <origin>J.R. Lovegreen</origin>
+            <pubdate>1974</pubdate>
+            <title>Paleodrainage history of the Hudson Estuary</title>
+            <geoform>Unpublished M.S. Thesis</geoform>
+            <pubinfo>
+              <pubplace/>
+              <publish>Columbia University</publish>
+            </pubinfo>
+          </citeinfo>
+        </srccite>
+        <typesrc>Digital and/or Hardcopy</typesrc>
+        <srctime>
+          <timeinfo>
+            <sngdate>
+              <caldate>1974</caldate>
+            </sngdate>
+          </timeinfo>
+          <srccurr>publication date</srccurr>
+        </srctime>
+        <srccitea>Lovegreen 1974</srccitea>
+        <srccontr>Bedrock elevation data points from cross-section</srccontr>
+      </srcinfo>
+      <procstep>
+        <procdesc>Bedrock elevation data from historical and recent boreholes, wells, outcrops, and seismic surveys were compiled into a point shapefile in ArcGIS Pro. Point elevation data represent a mix of publicly available data with references provided, and proprietary data for which references are unavailable for security concerns.  A bedrock elevation raster was generated from the point data set by interpolating bedrock elevation using the Topo to Raster toolbox, and 100-ft contours were generated from the raster using spatial analyst tools. Depth to bedrock data were acquired by subtracting the bedrock elevation from the surface elevation at each data point, and interpolating the the depth to bedrock using the Topo to Raster toolbox.</procdesc>
+        <procdate>2021</procdate>
+      </procstep>
+    </lineage>
+  </dataqual>
+  <spdoinfo>
+    <direct>Point</direct>
+    <ptvctinf>
+      <sdtsterm>
+        <sdtstype>Point</sdtstype>
+        <ptvctcnt>14384</ptvctcnt>
+      </sdtsterm>
+    </ptvctinf>
+  </spdoinfo>
+  <spref>
+    <horizsys>
+      <planar>
+        <gridsys>
+          <gridsysn>Universal Transverse Mercator</gridsysn>
+          <utm>
+            <utmzone>18</utmzone>
+            <transmer>
+              <sfctrmer>0.9996</sfctrmer>
+              <longcm>-75.0</longcm>
+              <latprjo>0.0</latprjo>
+              <feast>500000.0</feast>
+              <fnorth>0.0</fnorth>
+            </transmer>
+          </utm>
+        </gridsys>
+        <planci>
+          <plance>coordinate pair</plance>
+          <coordrep>
+            <absres>0.6096</absres>
+            <ordres>0.6096</ordres>
+          </coordrep>
+          <plandu>meters</plandu>
+        </planci>
+      </planar>
+      <geodetic>
+        <horizdn>North_American_Datum_1983</horizdn>
+        <ellips>GRS_1980</ellips>
+        <semiaxis>6378137.0</semiaxis>
+        <denflat>298.257222101</denflat>
+      </geodetic>
+    </horizsys>
+  </spref>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>dem_5bor.tif</enttypl>
+        <enttypd>Digital elevation model of land surface elevation for New York City</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>Raster file with no attributes</attrlabl>
+        <attrdef>Digital elevation model (DEM) raster of land surface elevation in feet above sea level (North American Vertical Datum 1988).</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-118.39096069336</rdommin>
+            <rdommax>411.19000244141</rdommax>
+            <attrunit>ft above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>depth_5bor.tif</enttypl>
+        <enttypd>Raster file of overburden thickness for New York City.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>Raster file with no attributes</attrlabl>
+        <attrdef>Raster file of the overburden thickness in feet</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>0.0</rdommin>
+            <rdommax>1280.4744873047</rdommax>
+            <attrunit>ft</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>elev_5bor.tif</enttypl>
+        <enttypd>Raster file of the interpolated bedrock surface elevation for New York City.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>Raster file with no attributes</attrlabl>
+        <attrdef>Raster file of the interpolated bedrock surface in feet above sea level (North American Vertical Datum 1988)</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-1341.8043212891</rdommin>
+            <rdommax>361.60791015625</rdommax>
+            <attrunit>ft above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>LI_contours.shp</enttypl>
+        <enttypd>Shapefile of bedrock elevation contours for Long Island for input into bedrock interpolation.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Contour</attrlabl>
+        <attrdef>Numeric value for the elevation of the contour line in feet above sea level (North American Vertical Datum 1988)</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-2200</rdommin>
+            <rdommax>-100</rdommax>
+            <attrunit>ft above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>elev_contours_100ft.shp</enttypl>
+        <enttypd>Shapefile of bedrock elevation contours derived from the interpolated bedrock elevation raster, elev_5bor.tif</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Contour</attrlabl>
+        <attrdef>Numeric value for the elevation of the contour line in feet above sea level (North American Vertical Datum 1988).</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-1300.0</rdommin>
+            <rdommax>300.0</rdommax>
+            <attrunit>ft above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>bedrock_pts.shp Attribute Table</enttypl>
+        <enttypd>Table containing attribute information associated with the data set.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Comments</attrlabl>
+        <attrdef>Alphanumberic string containing additional information for the data point</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <udom>Alphanumeric string with any applicable additional comments for the data point.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Source</attrlabl>
+        <attrdef>Alphanumeric abbreviation for the entity providing the data.</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <edom>
+            <edomv>USGS/NWIS</edomv>
+            <edomvd>U.S. Geological Survey / National Water Information System</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>USGS/NWIS/GeoLog</edomv>
+            <edomvd>U.S. Geological Survey / National Water Information System / GeoLog Locator</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>WPA</edomv>
+            <edomvd>Works Progress Administration</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Map or Cross-Section</edomv>
+            <edomvd>Data obtained from a published map or cross-section with reference supplied in Reference attribute</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>USGS</edomv>
+            <edomvd>U.S. Geological Survey</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>NYC DDC</edomv>
+            <edomvd>New York City Department of Design and Construction</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>PA NYNJ</edomv>
+            <edomvd>Port Authority of New York and New Jersey</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>NYC MTA Bridges &amp; Tunnels</edomv>
+            <edomvd>New York City Metropolitan Transportation Authority, division of Bridges and Tunnels</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>USACE</edomv>
+            <edomvd>U.S. Army Corps of Engineers</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>NYC DEP</edomv>
+            <edomvd>New York City Department of Environmental Protection</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>TBTA</edomv>
+            <edomvd>Triborough Bridge and Tunnel Authority</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>PATH</edomv>
+            <edomvd>Port Authority Trans-Hudson</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>PT&amp;T</edomv>
+            <edomvd>Pennsylvania Tunnel and Terminal Railroad</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Aerial imagery</edomv>
+            <edomvd>Aerial imagery</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Data_type</attrlabl>
+        <attrdef>Alphanumeric string described the type of geologic investigation that provided the data</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <edom>
+            <edomv>Water/Monitoring Well</edomv>
+            <edomvd>An artificial excavation for the purpose of withdrawing water, oil, or gas from underground.</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Construction Borehole</edomv>
+            <edomvd>An artificial excavation for the purpose of observation of subsurface geology.</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>HVSR Soundings</edomv>
+            <edomvd>Horizontal-to-Vertical Spectral Ratio (HVSR) soundings. A surface geophysical technique that uses single station measurements based on natural ambient noise to obtain depth to bedrock based on the Fourier amplitude spectrum ratio of components in the horizontal and vertical directions.</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Marine Seismic-Reflection Survey</edomv>
+            <edomvd>Marine geophysical technique to study the subsurface of the earth using sound waves induced by explosives, vibrating devices, or percussive equipment, using a towed transmitter and array of geophones behind a boat.</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Surface Outcrop</edomv>
+            <edomvd>Visible exposure of bedrock on the surface of the Earth.</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Reference</attrlabl>
+        <attrdef>Alphanumeric string providing the citation for the data source, where available.</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <udom>Alphanumeric string giving the citation for the data source; data listed as "Proprietary data" are not publicly available and were provided by the New York City Department of Design and Construction under the condition that no other identifying details would be disclosed.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Elev_ft</attrlabl>
+        <attrdef>Numerical value for the elevation of the bedrock in feet above sea level (North American Vertical Datum 1988)</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-1978.0</rdommin>
+            <rdommax>445.048</rdommax>
+            <attrunit>feet above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Depth_ft</attrlabl>
+        <attrdef>Numerical value for the depth of the bedrock below the land surface in feet.</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>0.0</rdommin>
+            <rdommax>1990.8965</rdommax>
+            <attrunit>feet</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>NJ_Hudson_contours.shp</enttypl>
+        <enttypd>Shapefile of bedrock elevation contours for New Jersey and the Hudson River from published sources.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Contour</attrlabl>
+        <attrdef>Numeric value for the elevation of the contour line in feet above sea level (North American Vertical Datum 1988). Modified from Stanford 2002a, 2002b,1995, 1993.</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <rdom>
+            <rdommin>-300.0</rdommin>
+            <rdommax>200.0</rdommax>
+            <attrunit>ft above sea level</attrunit>
+          </rdom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <detailed>
+      <enttyp>
+        <enttypl>Valleys_Faults.shp</enttypl>
+        <enttypd>Shapefile containing line features defining glacial valleys and the 125th St. Fault for input into bedrock interpolation.</enttypd>
+        <enttypds>Producer Defined</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>FID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>ESRI</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Feature</attrlabl>
+        <attrdef>Alphanumeric string describing the interpretive geologic feature.</attrdef>
+        <attrdefs>Producer Defined</attrdefs>
+        <attrdomv>
+          <edom>
+            <edomv>125th St. Fault</edomv>
+            <edomvd>Interpreted subsurface expression of the 125th St. Fault</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+        <attrdomv>
+          <edom>
+            <edomv>Glacial valley</edomv>
+            <edomvd>Interpreted subsurface expression of glacially-scoured valleys</edomvd>
+            <edomvds>Producer defined</edomvds>
+          </edom>
+        </attrdomv>
+      </attr>
+    </detailed>
+  </eainfo>
+  <distinfo>
+    <distrib>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>U.S. Geological Survey</cntorg>
+          <cntper>GS ScienceBase</cntper>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>Denver Federal Center, Building 810, Mail Stop 302</address>
+          <city>Denver</city>
+          <state>CO</state>
+          <postal>80225</postal>
+          <country>United States</country>
+        </cntaddr>
+        <cntvoice>1-888-275-8747</cntvoice>
+        <cntemail>sciencebase@usgs.gov</cntemail>
+      </cntinfo>
+    </distrib>
+    <distliab>Unless otherwise stated, all data, metadata and related materials are considered to satisfy the quality standards relative to the purpose for which the data were collected. Although these data and associated metadata have been reviewed for accuracy and completeness and approved for release by the U.S. Geological Survey (USGS), no warranty expressed or implied is made regarding the display or utility of the data on any other system or for general or scientific purposes, nor shall the act of distribution constitute any such warranty.</distliab>
+    <stdorder>
+      <digform>
+        <digtinfo>
+          <formname>Digital Data</formname>
+        </digtinfo>
+        <digtopt>
+          <onlinopt>
+            <computer>
+              <networka>
+                <networkr>https://doi.org/10.5066/P911CSI3</networkr>
+              </networka>
+            </computer>
+          </onlinopt>
+        </digtopt>
+      </digform>
+      <fees>None</fees>
+    </stdorder>
+  </distinfo>
+  <metainfo>
+    <metd>20230525</metd>
+    <metc>
+      <cntinfo>
+        <cntperp>
+          <cntper>Laura M. DeMott</cntper>
+          <cntorg>U.S. Geological Survey, NORTHEAST REGION</cntorg>
+        </cntperp>
+        <cntaddr>
+          <addrtype>mailing address</addrtype>
+          <address>3075 Gracie Road</address>
+          <city>Cortland</city>
+          <state>NY</state>
+          <postal>13045</postal>
+          <country>US</country>
+        </cntaddr>
+        <cntvoice>607-753-9391</cntvoice>
+        <cntemail>ldemott@contractor.usgs.gov</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+  </metainfo>
+</metadata>
