@@ -73,6 +73,10 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 When neither override is set but the API proxy is configured, the app picks the newest run that still has a mesh file, then falls back to sample paths and the Khronos duck.
 
+Use the **same** origin for both sides when tunneling (e.g. `https://your-name.ngrok-free.dev`): set `NEXT_PUBLIC_API_BASE_URL` on Vercel / `.env.local`, and set `GEO_NYC_PUBLIC_BASE_URL` on the FastAPI host so manifest URLs for `/static/exports/...` match what the browser can reach.
+
+Free ngrok may return an HTML interstitial on programmatic requests; `src/proxy.ts` adds `ngrok-skip-browser-warning` for `/geo-nyc-proxy/*` so rewrites get JSON from the API.
+
 The Python API does not need to list your Vercel domain in CORS for these calls (traffic is Vercel → upstream). CORS on the backend still matters for other clients that hit ngrok directly from the browser.
 
 ## Project layout (selected)

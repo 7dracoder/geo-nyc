@@ -257,7 +257,7 @@ Pick one. You only need one running.
 
 | Tool | Command | Notes |
 |---|---|---|
-| **ngrok** | `ngrok http 8000` | `https://<random>.ngrok-free.app`. URL rotates on restart on the free plan. |
+| **ngrok** | `ngrok http 8000` | `https://<random>.ngrok-free.app` or `.ngrok-free.dev`. URL rotates on restart on the free plan. |
 | **Cloudflare Tunnel** | `brew install cloudflared && cloudflared tunnel --url http://localhost:8000` | Free, more stable URLs with a named tunnel. |
 | **Tailscale Funnel** | `tailscale funnel 8000` | Stable `*.ts.net` URL if you already use Tailscale. |
 
