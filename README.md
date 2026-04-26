@@ -1,9 +1,18 @@
-# geo-nyc — Urban Subsurface AI (Backend)
+# geo-nyc — Urban Subsurface AI
 
-Local, edge-computed FastAPI backend for **Urban Subsurface AI**: it
-turns dense USGS NYC geological PDFs into a 3D subsurface model
-(`.glb` + depth-to-bedrock scalar field) using a **local Ollama LLM**
-and `scipy`/`gempy` modeling — **no cloud APIs** required.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/7dracoder/geo-nyc)
+
+Edge-computed FastAPI backend + Next.js frontend for **Urban
+Subsurface AI**: it turns dense USGS NYC geological PDFs into a 3D
+subsurface model (`.glb` + depth-to-bedrock scalar field) using a
+**Groq-hosted Llama** LLM (or local Ollama) and `scipy` / `gempy`
+modeling.
+
+> **One-click cloud deploy:** click the button above, then see
+> [`DEPLOYMENT.md`](./DEPLOYMENT.md) — both the API (`geo-nyc-api`) and
+> the Next.js frontend (`geo-nyc-web`) ship from the same Render
+> Blueprint. The only secret you have to paste is your
+> `GEO_NYC_GROQ_API_KEY`.
 
 This README is the operational guide for the backend repo (Part 2 of
 the workstream split). The full project blueprint, frontend strategy,

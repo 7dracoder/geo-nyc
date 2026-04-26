@@ -2,26 +2,33 @@
 #
 # One-click deploy: push this file, then visit
 # https://dashboard.render.com/iacs and pick this repo. Render will read
-# this file and create the service(s) below.
+# this file and create the services below.
 #
-# What lives where after deploy:
-#   - Backend (FastAPI + Groq + RBF/synthetic mesh): this Render service.
-#   - Frontend (Next.js): stays on Vercel; just point its
-#     NEXT_PUBLIC_API_BASE_URL at the Render service URL.
+# Two services:
+#   - geo-nyc-api : FastAPI backend (Python, Groq Llama, RBF/synthetic mesh)
+#   - geo-nyc-web : Next.js frontend (Node)
+#
+# Both ship from the same repo. The frontend's NEXT_PUBLIC_API_BASE_URL
+# is wired to point at the backend's public URL automatically.
 #
 # Free tier caveats (read these before relying on the demo):
-#   - The web service spins down after ~15 minutes of inactivity. First
-#     request after spin-down takes ~50s while uvicorn boots.
-#   - The free tier has *no persistent disk*. Anything written under
-#     ./data is wiped on every cold start. Seeded runs disappear unless
-#     you either (a) attach a paid persistent disk and uncomment the
-#     `disk:` block below, or (b) re-run `make seed-runs` after each
-#     restart (the bootstrap script is idempotent).
+#   - Web services spin down after ~15 min of inactivity. First request
+#     after spin-down takes ~50s while the service boots.
+#   - The free tier has *no persistent disk*. Anything the backend
+#     writes under /var/data is wiped on every cold start. Seeded runs
+#     disappear unless you either (a) attach a paid persistent disk and
+#     uncomment the `disk:` block on the api service below, or (b)
+#     re-run `make seed-runs` after each restart (idempotent).
 #
 # Region note: pick "oregon" or "frankfurt" for free tier; the others
 # are paid. Groq's data center routing handles latency on its side.
+# Both services should sit in the same region to keep the API call from
+# the SSR layer cheap.
 
 services:
+  # =====================================================================
+  # Backend — FastAPI
+  # =====================================================================
   - type: web
     name: geo-nyc-api
     runtime: python
@@ -67,13 +74,13 @@ services:
         value: "false"
 
       # --- CORS --------------------------------------------------------
-      # The default config covers Vercel production + previews via the
-      # regex below. Add extra origins comma-separated if you also serve
-      # the frontend somewhere else.
+      # Allow the Render-hosted frontend (geo-nyc-web), the legacy Vercel
+      # deployment + previews, and local dev. The regex covers both
+      # *.onrender.com and *.vercel.app variants.
       - key: GEO_NYC_CORS_ORIGINS
-        value: https://geo-nyc.vercel.app,http://localhost:3000,http://localhost:5173
+        value: https://geo-nyc-web.onrender.com,https://geo-nyc.vercel.app,http://localhost:3000,http://localhost:5173
       - key: GEO_NYC_CORS_ORIGIN_REGEX
-        value: ^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$
+        value: ^https://geo-nyc(-[a-z0-9-]+)?\.(vercel\.app|onrender\.com)$
 
       # --- Pipeline toggles -------------------------------------------
       - key: GEO_NYC_USE_FIXTURES
@@ -109,3 +116,36 @@ services:
     #   name: geo-nyc-data
     #   mountPath: /var/data
     #   sizeGB: 1
+
+  # =====================================================================
+  # Frontend — Next.js
+  # =====================================================================
+  # Builds and runs the Next.js app from `apps/web`. NEXT_PUBLIC_*
+  # variables are baked into the JS bundle at build time, so changing
+  # them later requires a redeploy (Render's "Manual Deploy" button or
+  # a fresh push triggers it).
+  - type: web
+    name: geo-nyc-web
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: apps/web
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT -H 0.0.0.0
+    healthCheckPath: /
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_VERSION
+        value: "20.18.0"
+
+      # The Next app reads this at build time to (a) generate
+      # /geo-nyc-proxy/* rewrites in next.config.ts and (b) drive
+      # client-side fetches via apps/web/src/lib/api.ts. We hardcode
+      # the predictable Render URL of the api service in the same
+      # blueprint — Render free-tier URLs follow
+      # https://<service-name>.onrender.com so this is deterministic.
+      # Override in the dashboard if you renamed the api service.
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://geo-nyc-api.onrender.com
