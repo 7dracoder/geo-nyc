@@ -1,6 +1,6 @@
 "use client";
 
-import { Environment, OrbitControls, useGLTF } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import {
   Component,
@@ -17,34 +17,36 @@ import { resolveGltfUrl } from "@/lib/gltfAsset";
 import type { MapPickLocation } from "@/types/map-pick";
 
 const PALETTE = [
-  "#f59e0b",
-  "#84cc16",
-  "#22c55e",
-  "#06b6d4",
-  "#3b82f6",
-  "#8b5cf6",
-  "#ec4899",
-  "#ef4444",
+  "#5C4A3A",
+  "#8B6F47",
+  "#D2B48C",
+  "#C0B59A",
+  "#a78b6f",
+  "#9c8a73",
+  "#7d6852",
+  "#b8a98a",
 ];
 
 function PlaceholderBlock() {
   return (
     <mesh>
       <boxGeometry args={[1.15, 0.75, 1.15]} />
-      <meshStandardMaterial color="#78716c" roughness={0.45} metalness={0.08} />
+      <meshLambertMaterial color="#a39a85" />
     </mesh>
   );
 }
 
 /**
- * Defensive cleanup of GLBs coming out of the geo-nyc mesh exporter:
- *   - Compute vertex normals when missing (otherwise PBR materials render black).
- *   - Force `DoubleSide` so inconsistent winding doesn't hide layers.
- *   - Clamp metalness/roughness to sane values; brighten near-black baseColor so
- *     a layer that was emitted with `0x000000` is still visible.
- *   - Assign a per-mesh fallback color from PALETTE when material is undefined.
- *   - Drop shadow casting/receiving — the dock's shadow budget is the main
- *     reason WebGL contexts get lost on Vercel iframes alongside MapLibre.
+ * Cheap, robust GLB rendering for the dock:
+ *   - Compute vertex normals when missing (else lit materials render black).
+ *   - Force DoubleSide so inconsistent winding doesn't hide layers.
+ *   - Convert every material to `MeshLambertMaterial`. Lambert is the cheapest
+ *     lit material in three.js: no PBR, no IBL, no PMREM cubemap allocation —
+ *     which is the difference between "WebGL context lost" and a solid render
+ *     when MapLibre is already eating one WebGL context on the page.
+ *   - If the source baseColor is missing or near-black, swap in a per-mesh
+ *     palette color so layers are always visible.
+ *   - No shadows.
  */
 function GlbModel({ url }: { url: string }) {
   const gltf = useGLTF(url);
@@ -59,40 +61,31 @@ function GlbModel({ url }: { url: string }) {
       if (geom && !geom.attributes.normal) {
         geom.computeVertexNormals();
       }
-      const fallbackColor = PALETTE[meshIndex % PALETTE.length];
+      const fallback = PALETTE[meshIndex % PALETTE.length];
       meshIndex += 1;
-      const ensureMaterial = (mat: THREE.Material | null | undefined): THREE.Material => {
-        if (!mat) {
-          return new THREE.MeshStandardMaterial({
-            color: fallbackColor,
-            roughness: 0.7,
-            metalness: 0.05,
-            side: THREE.DoubleSide,
-            flatShading: false,
-          });
-        }
-        mat.side = THREE.DoubleSide;
-        if (mat instanceof THREE.MeshStandardMaterial) {
-          mat.toneMapped = true;
-          mat.metalness = Math.min(mat.metalness ?? 0.0, 0.25);
-          mat.roughness = Math.max(mat.roughness ?? 0.5, 0.55);
-          if (mat.color && mat.color.r + mat.color.g + mat.color.b < 0.15) {
-            mat.color.set(fallbackColor);
-          }
-        }
-        if ("color" in mat && mat.color instanceof THREE.Color) {
-          if (mat.color.r + mat.color.g + mat.color.b < 0.15) {
-            mat.color.set(fallbackColor);
-          }
-        }
-        mat.needsUpdate = true;
-        return mat;
-      };
+
+      const sourceColor =
+        o.material &&
+        !Array.isArray(o.material) &&
+        "color" in o.material &&
+        (o.material as THREE.MeshStandardMaterial).color instanceof THREE.Color
+          ? (o.material as THREE.MeshStandardMaterial).color.clone()
+          : null;
+      const useColor = sourceColor && sourceColor.r + sourceColor.g + sourceColor.b > 0.15
+        ? sourceColor
+        : new THREE.Color(fallback);
+
+      const cheap = new THREE.MeshLambertMaterial({
+        color: useColor,
+        side: THREE.DoubleSide,
+        toneMapped: true,
+      });
       if (Array.isArray(o.material)) {
-        o.material = o.material.map((m) => ensureMaterial(m));
+        o.material.forEach((m) => m?.dispose?.());
       } else {
-        o.material = ensureMaterial(o.material as THREE.Material | null | undefined);
+        (o.material as THREE.Material | null | undefined)?.dispose?.();
       }
+      o.material = cheap;
     });
 
     const box = new THREE.Box3().setFromObject(g);
@@ -142,11 +135,10 @@ function SceneBody({ modelUrl }: { modelUrl: string }) {
   return (
     <>
       <color attach="background" args={["#f0ede8"]} />
-      <ambientLight intensity={0.55} />
-      <hemisphereLight args={["#ffffff", "#9ca3af", 0.65]} />
-      <directionalLight position={[5, 8, 4]} intensity={1.0} />
-      <directionalLight position={[-4, 3, -2]} intensity={0.35} />
-      <Environment preset="city" />
+      <ambientLight intensity={0.85} />
+      <hemisphereLight args={["#ffffff", "#7d7466", 0.85]} />
+      <directionalLight position={[5, 8, 4]} intensity={0.9} />
+      <directionalLight position={[-4, 3, -2]} intensity={0.4} />
       <GlbErrorBoundary>
         <Suspense fallback={<PlaceholderBlock />}>
           <GlbModel url={modelUrl} />
@@ -165,6 +157,7 @@ type SubsurfaceViewerProps = {
 export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
   const pickKey = pick ? `${pick.lng.toFixed(5)},${pick.lat.toFixed(5)}` : "none";
   const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -214,27 +207,33 @@ export function SubsurfaceViewer({ pick, onClearPick }: SubsurfaceViewerProps) {
         <div className="subsurface-canvas-wrap">
           {modelUrl ? (
             <Canvas
-              key={`${pickKey}-${modelUrl}`}
+              key={`${pickKey}-${modelUrl}-${reloadKey}`}
               className="!h-full !w-full touch-none"
               style={{ width: "100%", height: "100%" }}
               camera={{ position: [2.6, 2.0, 2.6], fov: 50 }}
               frameloop="demand"
               gl={{
-                antialias: true,
+                antialias: false,
                 alpha: false,
-                powerPreference: "default",
-                toneMapping: THREE.ACESFilmicToneMapping,
+                powerPreference: "low-power",
+                toneMapping: THREE.NoToneMapping,
                 outputColorSpace: THREE.SRGBColorSpace,
                 preserveDrawingBuffer: false,
                 failIfMajorPerformanceCaveat: false,
               }}
-              dpr={[1, 1.5]}
+              dpr={1}
               onCreated={({ gl }) => {
                 const canvas = gl.domElement;
-                canvas.addEventListener("webglcontextlost", (e) => {
+                const onLost = (e: Event) => {
                   e.preventDefault();
-                  console.warn("[geo-nyc] WebGL context lost in subsurface dock");
-                });
+                  console.warn("[geo-nyc] WebGL context lost in subsurface dock; will rebuild");
+                  window.setTimeout(() => setReloadKey((k) => k + 1), 250);
+                };
+                const onRestored = () => {
+                  console.info("[geo-nyc] WebGL context restored in subsurface dock");
+                };
+                canvas.addEventListener("webglcontextlost", onLost);
+                canvas.addEventListener("webglcontextrestored", onRestored);
               }}
             >
               <SceneBody modelUrl={modelUrl} />
