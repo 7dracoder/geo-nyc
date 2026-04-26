@@ -24,11 +24,6 @@ class LLMResponse:
     model: str
     metadata: dict[str, Any]
 
-    @property
-    def stripped(self) -> str:
-        """Convenience accessor for trimmed model output."""
-        return self.text.strip()
-
 
 class BaseLLMProvider(ABC):
     """Minimal async contract every provider must implement."""

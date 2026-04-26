@@ -231,8 +231,5 @@ class GeologyDSLParser:
             raise DSLParseError(str(exc)) from exc
         return self._transformer.transform(tree)
 
-    def parse_file(self, path: Path) -> Program:
-        return self.parse(Path(path).read_text(encoding="utf-8"))
-
 
 __all__ = ["GRAMMAR_PATH", "GeologyDSLParser"]

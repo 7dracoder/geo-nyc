@@ -1,7 +1,7 @@
 import { apiBase } from "@/lib/api";
 
 /** Known-good glTF (no Draco) when no pipeline mesh is available. */
-export const KHRONOS_DUCK_GLTF =
+const KHRONOS_DUCK_GLTF =
   "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb";
 
 const LOCAL_GLB = "/exports/sample.glb";
@@ -16,6 +16,7 @@ type RunManifestJson = {
   run_id?: string;
   status?: string;
   created_at?: string;
+  mode?: string;
   artifacts?: ArtifactJson[];
 };
 
@@ -23,13 +24,27 @@ type RunListJson = {
   items?: RunManifestJson[];
 };
 
+/**
+ * Higher = more interesting. Picks PDF-driven runs (DSL → GemPy from
+ * the 3 source PDFs) ahead of fixture runs so the dock shows real data
+ * once the operator has run `make seed-runs`.
+ */
+function priorityForMode(mode: string | undefined): number {
+  const m = (mode ?? "").toLowerCase();
+  if (m.includes("document_llm_dsl")) return 4;
+  if (m.includes("document_llm")) return 3;
+  if (m.includes("document_chunks")) return 2;
+  if (m.includes("document")) return 2;
+  return 1;
+}
+
 function trimEnv(url: string | undefined): string | null {
   const t = url?.trim();
   return t && t.length > 0 ? t : null;
 }
 
 /** Turn backend absolute `PUBLIC_BASE_URL/static/...` into same-origin proxy path. */
-export function proxiedStaticFetchUrl(base: string, backendUrl: string): string {
+function proxiedStaticFetchUrl(base: string, backendUrl: string): string {
   if (!backendUrl) return "";
   if (backendUrl.startsWith("/")) {
     return `${base}${backendUrl}`;
@@ -129,20 +144,28 @@ async function meshUrlFromConfiguredRunId(base: string, runId: string): Promise<
   return meshUrlFromManifest(base, manifest);
 }
 
-async function meshUrlFromLatestRun(base: string): Promise<string | null> {
+type LatestPick = { url: string; manifest: RunManifestJson };
+
+async function meshUrlFromLatestRun(base: string): Promise<LatestPick | null> {
   const body = await fetchJsonNoHtml<RunListJson>(`${base}/api/runs?limit=40`);
   if (!body) return null;
   const items = body.items ?? [];
+  // Sort by (succeeded > others) then (PDF-driven mode > fixture) then
+  // (newest first). The mode tier is the new bit: once `make seed-runs`
+  // has produced a `document_llm_dsl` run, the dock uses it even if a
+  // fresher fixture run exists.
   const sorted = [...items].sort((a, b) => {
-    const ta = a.created_at ?? "";
-    const tb = b.created_at ?? "";
-    return tb.localeCompare(ta);
+    const sa = a.status === "succeeded" ? 1 : 0;
+    const sb = b.status === "succeeded" ? 1 : 0;
+    if (sa !== sb) return sb - sa;
+    const pa = priorityForMode(a.mode);
+    const pb = priorityForMode(b.mode);
+    if (pa !== pb) return pb - pa;
+    return (b.created_at ?? "").localeCompare(a.created_at ?? "");
   });
-  const preferSucceeded = sorted.filter((m) => m.status === "succeeded");
-  const rest = sorted.filter((m) => m.status !== "succeeded");
-  for (const m of [...preferSucceeded, ...rest]) {
+  for (const m of sorted) {
     const url = await meshUrlFromManifest(base, m);
-    if (url) return url;
+    if (url) return { url, manifest: m };
   }
   return null;
 }
@@ -182,8 +205,12 @@ export async function resolveGltfUrl(): Promise<string> {
 
     const latest = await meshUrlFromLatestRun(base);
     if (latest) {
-      log("latest run from /api/runs", latest);
-      return latest;
+      const m = latest.manifest;
+      const tag = m.mode
+        ? `latest run (${m.mode}, ${m.run_id ?? "?"})`
+        : `latest run (${m.run_id ?? "?"})`;
+      log(tag, latest.url);
+      return latest.url;
     }
 
     const legacySample = `${base}/static/exports/sample.glb`;

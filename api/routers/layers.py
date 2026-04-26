@@ -20,11 +20,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 
 from geo_nyc.config import REPO_ROOT, get_settings
-from geo_nyc.logging import get_logger
 
 router = APIRouter(tags=["layers"])
-
-log = get_logger(__name__)
 
 # Fallback used only if the configured data-layer dir doesn't yet have
 # a manifest.json (e.g. fresh checkout, scripts not run). Matches the

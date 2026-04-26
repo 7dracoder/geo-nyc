@@ -153,10 +153,6 @@ class Program:
         return (*self.depositions, *self.erosions, *self.intrusions)
 
     @property
-    def all_ids(self) -> set[str]:
-        return {n.id for n in (*self.rocks, *self.all_events)}
-
-    @property
     def rock_ids(self) -> set[str]:
         return {r.id for r in self.rocks}
 

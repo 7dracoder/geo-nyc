@@ -24,11 +24,7 @@ import numpy as np
 from scipy.interpolate import RBFInterpolator
 
 from geo_nyc.exceptions import ModelingError
-from geo_nyc.modeling.constraints import (
-    FormationConstraint,
-    GemPyInputs,
-    SurfacePoint,
-)
+from geo_nyc.modeling.constraints import GemPyInputs, SurfacePoint
 from geo_nyc.modeling.runner import EngineName, MeshRunResult, _Timer
 from geo_nyc.modeling.synthetic_mesh import LayerMesh
 
@@ -270,11 +266,6 @@ def _grid_to_mesh(
             faces[fi + 1] = (v00, v11, v01)
             fi += 2
     return vertices, faces
-
-
-# Avoid unused-import warnings: ``FormationConstraint`` is referenced in
-# the docstring's runtime contract.
-_ = FormationConstraint
 
 
 __all__ = ["RBFRunner", "RBFRunnerConfig"]

@@ -7,7 +7,7 @@ PIP    := $(VENV)/bin/pip
 PY     := $(VENV)/bin/python
 UVICORN := $(VENV)/bin/uvicorn
 
-.PHONY: help venv install install-dev install-modeling clean fmt lint test run ollama-up
+.PHONY: help venv install install-dev install-modeling clean fmt lint test run ollama-up seed-runs
 
 help:
 	@echo "geo-nyc backend make targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  make install-dev      Install runtime + dev deps"
 	@echo "  make install-modeling Install GemPy extra (heavy)"
 	@echo "  make run              Start FastAPI on \$$GEO_NYC_API_HOST:\$$GEO_NYC_API_PORT"
+	@echo "  make seed-runs        Download + ingest the 3 NYC geology PDFs and create one run per PDF"
 	@echo "  make test             Run pytest"
 	@echo "  make lint             Ruff check"
 	@echo "  make fmt              Ruff format"
@@ -40,6 +41,9 @@ run:
 
 test:
 	$(PY) -m pytest -ra
+
+seed-runs:
+	$(PY) -m geo_nyc.runs.bootstrap
 
 lint:
 	$(VENV)/bin/ruff check .

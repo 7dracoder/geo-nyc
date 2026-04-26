@@ -25,11 +25,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from geo_nyc.domain.normalization import GeologyGlossary, default_glossary
-from geo_nyc.extraction.structured import (
-    Contact,
-    LLMExtraction,
-    Structure,
-)
+from geo_nyc.extraction.structured import Contact, LLMExtraction
 from geo_nyc.modeling.constraints import (
     ConstraintSource,
     ExtentBox,
@@ -40,13 +36,7 @@ from geo_nyc.modeling.constraints import (
     SurfacePoint,
 )
 from geo_nyc.modeling.extent import ModelExtent
-from geo_nyc.parsers.dsl.ast import (
-    DepositionEvent,
-    Event,
-    IntrusionEvent,
-    Program,
-    RockType,
-)
+from geo_nyc.parsers.dsl.ast import Event, Program, RockType
 
 # Default dip/azimuth used when the LLM has nothing to say. NYC bedrock
 # (Manhattan Schist + friends) sits sub-horizontal at the demo scale, so
@@ -690,8 +680,3 @@ def _summarise(
 __all__ = [
     "ConstraintBuilder",
 ]
-
-
-# Avoid unused-import warnings from the AST surface set; they're kept
-# for documentation of the runtime contract.
-_ = (DepositionEvent, IntrusionEvent, Structure)

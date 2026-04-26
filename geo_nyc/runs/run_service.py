@@ -297,10 +297,34 @@ class RunService:
                         )
                         artifacts.extend(dsl_artifacts)
                         if dsl_summary.get("succeeded"):
-                            mode = "document_llm_dsl+fixture"
+                            # Fixture is now scaffolding only: extent + CRS;
+                            # the DSL the rest of the pipeline runs on came
+                            # from the PDF.
+                            mode = "document_llm_dsl"
 
             bundle = load_fixture_bundle(self._settings.fixtures_dir, fixture_name)
-            program, report = parse_and_validate(bundle.dsl_text)
+
+            # Pick the canonical DSL + Program for the rest of the pipeline.
+            # Prefer the LLM-derived DSL when it parsed + validated; the
+            # fixture is the deterministic fall-back so the demo never
+            # ships an empty mesh.
+            llm_dsl_path = run_dir / "geology.dsl"
+            using_llm_dsl = bool(
+                dsl_summary
+                and dsl_summary.get("succeeded")
+                and llm_dsl_path.is_file()
+            )
+            if using_llm_dsl:
+                canonical_dsl_text = llm_dsl_path.read_text(encoding="utf-8")
+                canonical_dsl_description = (
+                    "Canonical DSL the run executed against — sourced from the "
+                    "PDF-driven LLM extraction (`geology.dsl`)."
+                )
+            else:
+                canonical_dsl_text = bundle.dsl_text
+                canonical_dsl_description = "Canonical DSL from the demo fixture."
+
+            program, report = parse_and_validate(canonical_dsl_text)
             if not report.is_valid:
                 raise DSLValidationError(_format_report(report))
 
@@ -326,15 +350,21 @@ class RunService:
             )
             layers = mesh_outcome.layers
             if not layers:
-                raise RunError("Fixture program produced zero layers; nothing to render.")
+                raise RunError(
+                    f"{('PDF-derived' if using_llm_dsl else 'Fixture')} "
+                    f"program produced zero layers; nothing to render."
+                )
 
+            # Persist the *canonical* DSL the run actually used (PDF-derived
+            # when available; fixture otherwise). The optional fixture
+            # extraction stays a separate artifact for traceability.
             artifacts.append(
                 self._copy_text(
-                    bundle.dsl_text,
+                    canonical_dsl_text,
                     run_dir / "dsl.txt",
                     kind="dsl",
                     media_type="text/plain",
-                    description="Canonical DSL emitted from the extraction.",
+                    description=canonical_dsl_description,
                     relative_root=run_dir,
                     url=None,
                 )
@@ -345,7 +375,11 @@ class RunService:
                     run_dir / "extraction.json",
                     kind="extraction",
                     media_type="application/json",
-                    description="Source extraction payload (fixture).",
+                    description=(
+                        "Site extent + horizon scaffolding (fixture). "
+                        "Geology bodies were sourced from the PDF when "
+                        "`mode` starts with `document_llm_dsl`."
+                    ),
                     relative_root=run_dir,
                     url=None,
                 )

@@ -189,9 +189,11 @@ def test_run_with_use_llm_runs_extractor_and_records_artifacts(
     assert response.status_code == 201
     body = response.json()
 
-    # Phase 6 promotes the run mode to "document_llm_dsl+fixture" once the
-    # LLM extraction is converted into a parseable, schema-valid DSL program.
-    assert body["mode"] == "document_llm_dsl+fixture"
+    # Phase 6 promotes the run mode to "document_llm_dsl" once the LLM
+    # extraction is converted into a parseable, schema-valid DSL program
+    # — the mesh + GemPy inputs are now driven by the PDF-derived DSL,
+    # so the fixture is reduced to extent + horizon scaffolding.
+    assert body["mode"] == "document_llm_dsl"
     assert body["status"] == "succeeded"
 
     kinds = {a["kind"] for a in body["artifacts"]}

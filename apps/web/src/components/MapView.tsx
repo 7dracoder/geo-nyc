@@ -78,7 +78,7 @@ export type MapViewHandle = {
   fitVisibleOverlays: () => Promise<void>;
 };
 
-export type MapViewProps = {
+type MapViewProps = {
   pick?: MapPickLocation | null;
   onPick?: (lngLat: MapPickLocation) => void;
   manifestLayers: ManifestLayer[];

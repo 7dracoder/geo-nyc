@@ -237,6 +237,51 @@ runs the **repair loop** up to `GEO_NYC_LLM_MAX_REPAIR_ATTEMPTS` times
 before falling back to the fixture path. Either way the response
 shape is identical.
 
+When the LLM-derived DSL parses + validates, the service uses **that
+DSL** for the rest of the pipeline (mesh + GemPy inputs); the fixture
+is reduced to extent + horizon scaffolding. The run manifest records
+this as `mode: "document_llm_dsl"`. If the LLM step fails, the run
+gracefully falls back to the fixture DSL and the manifest reads
+`mode: "document_chunks+fixture"` (or `"document_llm+fixture"` if the
+extraction succeeded but the DSL build did not).
+
+### Seed the 3 canonical NYC geology PDFs
+
+Three reference PDFs drive Part 2 ([§3 of the blueprint](#3-data-acquisition-the-target-pdfs))
+— USGS I-2306, the Walloomsac (Lower Manhattan), and the Inwood Marble
+abstract. They are declared in
+[`geonyc-data/genyc_data/source_pdfs/sources.json`](geonyc-data/genyc_data/source_pdfs/sources.json)
+with download URLs, but the binaries are intentionally **not** checked
+in.
+
+To download all three, ingest them, and create one PDF-driven `/api/run`
+per PDF:
+
+```bash
+make seed-runs
+# or
+python -m geo_nyc.runs.bootstrap            # all 3, with Ollama
+python -m geo_nyc.runs.bootstrap --no-llm   # all 3, chunks-only (no Ollama needed)
+python -m geo_nyc.runs.bootstrap --only usgs_i2306
+```
+
+The script is idempotent (PDFs are cached on disk) and prints a JSON
+summary of what landed:
+
+```json
+{
+  "results": [
+    { "id": "usgs_i2306", "document_id": "d_abc...", "run_id": "r_...", "mode": "document_llm_dsl", "status": "succeeded" },
+    { "id": "cjm_2010",   "document_id": "d_def...", "run_id": "r_...", "mode": "document_llm_dsl", "status": "succeeded" },
+    { "id": "walloomsac_2010_primary", "document_id": "d_ghi...", "run_id": "r_...", "mode": "document_llm_dsl", "status": "succeeded" }
+  ]
+}
+```
+
+Once one of these runs lands, the deployed Vercel frontend's
+3D dock automatically prefers it over fixture-mode runs (see
+[Repository layout § frontend GLB resolution](#repository-layout)).
+
 ---
 
 ## Deploying with the Vercel frontend

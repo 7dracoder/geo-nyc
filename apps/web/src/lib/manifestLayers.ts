@@ -23,7 +23,7 @@ const SKIP_IDS: ReadonlySet<string> = new Set([
 
 const STATIC_MANIFEST_URL = "/layers/manifest.json";
 
-export function resolveManifestGeojsonUrl(geojsonPath: string, origin: string): string {
+function resolveManifestGeojsonUrl(geojsonPath: string, origin: string): string {
   if (geojsonPath.startsWith("http://") || geojsonPath.startsWith("https://")) {
     return geojsonPath;
   }
