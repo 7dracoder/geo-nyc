@@ -48,7 +48,7 @@ Script: `scripts/build-nyc-outside-mask.mjs`. It writes `public/layers/nyc_outsi
 
 - **Address:** Nominatim (`src/lib/geocode.ts`) with NYC-biased search; autocomplete and submit. Attribution: OpenStreetMap link in the panel.
 - **What-if:** Debounced calls to `POST /api/optimize` when `NEXT_PUBLIC_API_BASE_URL` is set; otherwise a local mock. Add `?mock=1` to force the mock even if a base URL is set (`src/lib/api.ts`). In the browser the real URL is same-origin `/geo-nyc-proxy/...` (rewritten by Next to your backend) so cross-origin CORS is avoided on Vercel.
-- **Part 3 overlays:** When the API base env is set, `ManifestOverlays.tsx` loads `GET /geo-nyc-proxy/api/layers` and rewrites GeoJSON paths to `/geo-nyc-proxy/static/layers/...`. If that fails or the env is unset, it falls back to `public/layers/manifest.json`.
+- **Part 3 overlays:** `AppShell` loads the manifest via `fetchDisplayableManifestLayers` (`src/lib/manifestLayers.ts`). The **Layers** sidebar toggles each overlay; **Fit to map** zooms to the union of bounds of all visible layers (fetches GeoJSON client-side to compute bbox). `ManifestOverlays.tsx` renders only enabled entries.
 
 ## Subsurface 3D (`SubsurfaceViewer.tsx`)
 
@@ -74,8 +74,8 @@ The Python API does not need to list your Vercel domain in CORS for these calls 
 ```
 src/
   app/              # Next app router, layout, globals.css
-  components/      # AppShell, MapView, AddressSearch, WhatIfPanel, SubsurfaceViewer
-  lib/              # geocode, api (optimize), nyc-borough-hit, positron-label-cleanup
+  components/      # AppShell, MapView, LayerPanel, ManifestOverlays, AddressSearch, WhatIfPanel, SubsurfaceViewer
+  lib/              # geocode, api, manifestLayers, geojson-bbox, nyc-borough-hit, positron-label-cleanup
   types/            # map-pick, optimize
 public/
   layers/           # boroughs_nyc.geojson, nyc_outside_mask.geojson, borough_labels.geojson

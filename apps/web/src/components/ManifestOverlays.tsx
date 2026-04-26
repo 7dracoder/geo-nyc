@@ -1,107 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Layer, Source } from "react-map-gl/maplibre";
-import { apiBase } from "@/lib/api";
+import type { ManifestLayer } from "@/lib/manifestLayers";
 
-/** Shape returned by `GET /layers/manifest.json` (Part 3 data layer). */
-type ManifestLayer = {
-  id: string;
-  title: string;
-  type: "fill" | "line";
-  geojson_path: string;
-  opacity: number;
-  legend_color: string;
-  source_url?: string;
-  download_date?: string;
-};
-
-type Manifest = {
+type ManifestOverlaysProps = {
   layers: ManifestLayer[];
+  /** When false or missing for an id, that overlay is hidden. */
+  enabled: Record<string, boolean>;
 };
 
-/**
- * IDs we deliberately skip so they don't clash with the hardcoded
- * borough mask / boundary already rendered by `MapView`.
- *
- * - `boroughs`: Part 3 AOI subset (e.g. just MN+BX+BK) — duplicates
- *   `boroughs_nyc.geojson` line we already draw.
- * - `aoi`: Part 3 AOI fill — would obscure the basemap inside boroughs.
- * - `borough_boundaries_water`: visually duplicates the borough outline.
- */
-const SKIP_IDS: ReadonlySet<string> = new Set([
-  "boroughs",
-  "aoi",
-  "borough_boundaries_water",
-]);
-
-const STATIC_MANIFEST_URL = "/layers/manifest.json";
-
-/** Map manifest `/layers/*.geojson` paths to FastAPI `GET /static/layers/*`. */
-function resolveGeojsonUrl(geojsonPath: string, origin: string): string {
-  if (geojsonPath.startsWith("http://") || geojsonPath.startsWith("https://")) {
-    return geojsonPath;
-  }
-  if (geojsonPath.startsWith("/layers/")) {
-    const name = geojsonPath.slice("/layers/".length);
-    return `${origin}/static/layers/${name}`;
-  }
-  if (geojsonPath.startsWith("/")) {
-    return `${origin}${geojsonPath}`;
-  }
-  return geojsonPath;
-}
-
-export function ManifestOverlays() {
-  const [layers, setLayers] = useState<ManifestLayer[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const ac = new AbortController();
-    const base = apiBase();
-
-    const load = async (): Promise<ManifestLayer[]> => {
-      if (base) {
-        try {
-          const r = await fetch(`${base}/api/layers`, { signal: ac.signal });
-          if (!r.ok) throw new Error(`api/layers ${r.status}`);
-          const m = (await r.json()) as Manifest;
-          return (m.layers ?? []).map((layer) => ({
-            ...layer,
-            geojson_path: resolveGeojsonUrl(layer.geojson_path, base),
-          }));
-        } catch {
-          // API down or older server: fall back to Next static manifest.
-        }
-      }
-      const r = await fetch(STATIC_MANIFEST_URL, { signal: ac.signal });
-      if (!r.ok) throw new Error(`manifest ${r.status}`);
-      const m = (await r.json()) as Manifest;
-      return m.layers ?? [];
-    };
-
-    load()
-      .then((raw) => {
-        if (cancelled) return;
-        const filtered = raw.filter(
-          (l) => l && !SKIP_IDS.has(l.id) && (l.type === "fill" || l.type === "line"),
-        );
-        setLayers(filtered);
-      })
-      .catch(() => {
-        // Silent: manifest is optional. Map still works without overlays.
-      });
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
-  }, []);
-
+export function ManifestOverlays({ layers, enabled }: ManifestOverlaysProps) {
   if (layers.length === 0) return null;
 
   return (
     <>
       {layers.map((layer) => {
+        if (enabled[layer.id] === false) return null;
         const sourceId = `manifest-${layer.id}`;
         if (layer.type === "fill") {
           return (
