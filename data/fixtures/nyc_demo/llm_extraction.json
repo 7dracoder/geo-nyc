@@ -1,0 +1,95 @@
+{
+  "formations": [
+    {
+      "name": "Manhattan Schist",
+      "rock_type": "metamorphic",
+      "aliases": ["Manhattan schist", "MnS"],
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 2,
+          "quote": "The Manhattan Schist is the dominant bedrock unit beneath much of Manhattan island.",
+          "chunk_id": "fixture_doc-p0002-c00"
+        }
+      ]
+    },
+    {
+      "name": "Inwood Marble",
+      "rock_type": "metamorphic",
+      "aliases": ["Inwood marble"],
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 3,
+          "quote": "The Inwood Marble underlies the Manhattan Schist along the contact in northern Manhattan.",
+          "chunk_id": "fixture_doc-p0003-c01"
+        }
+      ]
+    },
+    {
+      "name": "Glacial Till",
+      "rock_type": "sedimentary",
+      "aliases": ["till"],
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 4,
+          "quote": "Quaternary glacial till mantles much of the bedrock surface across the demo area.",
+          "chunk_id": "fixture_doc-p0004-c02"
+        }
+      ]
+    }
+  ],
+  "contacts": [
+    {
+      "top_formation": "Manhattan Schist",
+      "bottom_formation": "Inwood Marble",
+      "depth_value": 42.0,
+      "depth_unit": "m",
+      "location_text": "northern Manhattan",
+      "confidence": 0.72,
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 3,
+          "quote": "The contact between the Manhattan Schist and Inwood Marble is encountered at approximately 42 m depth.",
+          "chunk_id": "fixture_doc-p0003-c01"
+        }
+      ]
+    },
+    {
+      "top_formation": "Glacial Till",
+      "bottom_formation": "Manhattan Schist",
+      "depth_value": 18.0,
+      "depth_unit": "m",
+      "location_text": "Lower Manhattan",
+      "confidence": 0.65,
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 4,
+          "quote": "Glacial till is encountered above weathered schist bedrock at roughly 18 m below grade.",
+          "chunk_id": "fixture_doc-p0004-c02"
+        }
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "type": "dip",
+      "value_degrees": 35.0,
+      "azimuth_degrees": null,
+      "formation": "Manhattan Schist",
+      "location_text": "Bronx outcrop",
+      "evidence": [
+        {
+          "document_id": "fixture_doc",
+          "page": 5,
+          "quote": "Foliation in the Manhattan Schist near the Bronx outcrop dips approximately 35° to the southeast.",
+          "chunk_id": "fixture_doc-p0005-c03"
+        }
+      ]
+    }
+  ],
+  "notes": "Hand-crafted LLM-style extraction fixture used to validate the schema offline."
+}

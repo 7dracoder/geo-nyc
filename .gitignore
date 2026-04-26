@@ -1,0 +1,77 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtualenvs ---
+.venv/
+venv/
+env/
+.python-version
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.tox/
+.nox/
+.cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- IDE / editor ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Project artifacts (generated, never commit) ---
+data/documents/raw/*
+!data/documents/raw/.gitkeep
+data/documents/extracted/*
+!data/documents/extracted/.gitkeep
+data/runs/*
+!data/runs/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+data/fields/*
+!data/fields/.gitkeep
+data/cache/*
+!data/cache/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Local Ollama / model caches accidentally placed in repo
+.ollama/
+
+# Sibling reference clone (lives outside the repo, but guard anyway)
+/geo-lm/

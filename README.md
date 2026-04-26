@@ -1,361 +1,818 @@
-# Urban Subsurface AI: Hackathon Master Blueprint
+# geo-nyc — Urban Subsurface AI (Backend)
 
-**Project Objective:** Build a 100% local, edge-computed AI agent that translates dense, unstructured NYC geological PDF reports into an interactive 3D subsurface infrastructure map. This bypasses cloud LLMs entirely, ensuring data privacy, zero latency, and proving the viability of local hardware (M4 architecture) for complex civic data pipelines.
+Local, edge-computed FastAPI backend for **Urban Subsurface AI**: it
+turns dense USGS NYC geological PDFs into a 3D subsurface model
+(`.glb` + depth-to-bedrock scalar field) using a **local Ollama LLM**
+and `scipy`/`gempy` modeling — **no cloud APIs** required.
 
----
-
-## 1. The Core Repository & Frontend Strategy
-
-### 1.1 Starting point: `geo-lm`
-Use **[williamjsdavis/geo-lm](https://github.com/williamjsdavis/geo-lm)** as the **canonical starting repository** (MIT license). It already implements the hard parts we need: **PDF upload → document processing → geology DSL → GemPy-oriented 3D workflow**, with a **FastAPI** backend (`api/`), core package (`geo_lm/`), and an upstream **React + Vite** demo UI (`web/`) — **reference only**; our shipped UI is **Next.js on Vercel** (§1.1).
-
-**What we keep from upstream:**
-* **REST shape:** document upload/extract, DSL parse/validate/create, workflow status endpoints (see upstream README).
-* **DSL pipeline:** structured “geology DSL” as the contract between language understanding and modeling (Lark grammar, validation, retries).
-* **Workflow orchestration:** LangGraph-style graphs under `geo_lm/graphs/` for multi-step processing.
-* **GemPy integration path:** implicit 3D geological modeling after DSL is stable.
-
-**What we fork / change for this hackathon:**
-* **Local inference only:** upstream defaults to cloud providers (Anthropic, OpenAI, Llama API keys in `.env`). Replace the LLM client layer in `geo_lm/ai/` with an **Ollama** adapter that calls `http://localhost:11434` (same prompts, same JSON/DSL targets). Remove or gate cloud keys so the demo narrative stays **edge-local**.
-* **NYC corpus:** swap generic `input-data` examples for the **USGS NYC PDFs** listed in §3; tune prompts so the DSL encodes **NYC stratigraphy** (formations, contacts, depths) rather than the repo’s original economic-geology paper.
-* **Frontend strategy (locked):** **FastAPI backend stays in the forked `geo-lm` monorepo** (Python, Poetry, Ollama, GemPy, scripts). The **product UI is a separate Next.js application** deployed on **Vercel** — **not** a fork of upstream `web/` (Vite). Use **[geo-lm `web/`](https://github.com/williamjsdavis/geo-lm/tree/main/web)** only as a **feature and UX reference** (document list, workflow status patterns, API client shape, layout ideas); **re-implement** the screens in Next.js (App Router) with MapLibre + React Three Fiber per §2. Wire the Next app to the backend via **`NEXT_PUBLIC_API_BASE_URL`** (local: `http://localhost:8000`; demo: Ngrok/Cloudflare Tunnel URL). CORS must allow the Vercel origin on the FastAPI app.
-
-### 1.2 Reference
-* **Backend / modeling repo:** [https://github.com/williamjsdavis/geo-lm](https://github.com/williamjsdavis/geo-lm) (fork → add Ollama, NYC pipeline, GIS scripts, optimize router).
-* **Reference UI (read-only patterns):** [https://github.com/williamjsdavis/geo-lm/tree/main/web](https://github.com/williamjsdavis/geo-lm/tree/main/web)
-* **Local dev — backend:** `poetry install`, `poetry run uvicorn api.main:app --reload --port 8000`, **Ollama** running on `11434`.
-* **Local dev — frontend:** separate repo, `pnpm dev` / `npm run dev` (Next.js), `.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`.
+This README is the operational guide for the backend repo (Part 2 of
+the workstream split). The full project blueprint, frontend strategy,
+and team coordination notes live in [`Project Blueprint`](#project-blueprint)
+at the bottom.
 
 ---
 
-## 2. UI / UX Design Requirements
-To win, the presentation of the complex geological data must be instantly digestible.
-* **Aesthetic:** Keep it completely minimalistic. Use a clean, white background for the application and easy-to-understand charts. Avoid any dark-mode or "cyberpunk" themes.
-* **Geospatial Mapping Layers:** The 2D/3D experience must allow judges to add layers **one by one**. Include toggles for:
-    1. Base 2D street map.
-    2. GeoJSON polygons representing NYC neighborhood boundaries.
-    3. **NYC Open Data contextual layers** (see §6) — flood hazard / infrastructure-related polygons or lines, as static GeoJSON.
-    4. **Optional ML-derived rasters or contour overlays** (e.g., smoothed depth-to-bedrock grid) as lightweight GeoJSON isolines or PNG tiles if time permits.
-    5. The 3D subsurface wireframes or meshes (the bedrock / formation surfaces generated via GemPy and exported to `.gltf` / `.obj`).
-* **Optimization UI:** A small **“What-if”** panel (sliders or numeric inputs) that drives the **toy optimizer** in §8 against **precomputed** or **fast-interpolated** geology fields — never blocking the UI on a full GemPy solve per tick.
+## Table of contents
+
+1. [Architecture in 30 seconds](#architecture-in-30-seconds)
+2. [Quick start](#quick-start)
+3. [Running the demo](#running-the-demo)
+4. [Deploying with the Vercel frontend](#deploying-with-the-vercel-frontend)
+5. [API contracts](#api-contracts)
+6. [Static asset URLs](#static-asset-urls)
+7. [Field grid schema](#field-grid-schema)
+8. [Environment variables](#environment-variables)
+9. [Manual smoke checklist](#manual-smoke-checklist)
+10. [Tests, lint, and CI](#tests-lint-and-ci)
+11. [Repository layout](#repository-layout)
+12. [Troubleshooting](#troubleshooting)
+13. [Project blueprint](#project-blueprint)
+14. [License](#license)
 
 ---
 
-## 3. Data Acquisition: The Target PDFs
-Download these specific public domain USGS reports to feed the local LLM + DSL pipeline. They contain quantitative and interpretive data (stratigraphy, dip, strike, depth, structure).
+## Architecture in 30 seconds
 
-1. **The Master Stratigraphy:** *Bedrock and Engineering Geologic Maps of Bronx County and parts of New York and Queens Counties (USGS I-2306)*
-2. **The Infrastructure Risk Data:** *Newly Mapped Walloomsac Formation in Lower Manhattan and New York Harbor and the Implications for Engineers*
-3. **The Depth Metrics:** *Stratigraphy, Structural Geology and Metamorphism of the Inwood Marble Formation, Northern Manhattan (NYC Water Tunnel Data)*
+```
+                       ┌──────────────────────────────────────────┐
+                       │              FastAPI (api/)              │
+PDF upload ─────────▶ │  /api/documents/*  /api/run  /api/runs   │
+                       │  /api/health       /api/llm/health       │
+                       │  /static/exports/* /static/fields/*      │
+                       └────────┬───────────────────────┬─────────┘
+                                │                       │
+                ┌───────────────▼─────────┐   ┌─────────▼──────────┐
+                │  geo_nyc.documents      │   │  geo_nyc.runs       │
+                │  • PyMuPDF text extract │   │  • RunService        │
+                │  • content-hash IDs     │   │  • Ranked chunks     │
+                │  • per-page JSON store  │   │  • LLM extraction    │
+                └─────────────┬───────────┘   │  • DSL build         │
+                              │               │  • GemPy constraints │
+                              ▼               │  • Mesh + field      │
+                ┌─────────────────────────┐   │  • Manifest writer   │
+                │  geo_nyc.ai (Ollama)    │   └──────────┬──────────┘
+                │  • httpx, JSON mode     │              │
+                │  • repair loop          │              │
+                └─────────────────────────┘              │
+                                                         ▼
+                          ┌────────────────────────────────────────┐
+                          │  geo_nyc.modeling                      │
+                          │  • RBFRunner, GemPyRunner, Synthetic   │
+                          │  • field_builder (RBF / mesh resample) │
+                          │  • mesh_export (.glb), field_export    │
+                          └────────────────────────────────────────┘
+```
 
----
-
-## 4. End-to-End Execution Pipeline
-
-### Phase A: Local AI Engine Setup (The Edge Node)
-1. Install **Ollama** on your M4 Mac.
-2. Pull a high-efficiency quantized model: `ollama run llama3:8b` (or similar modern 8B parameter model). This ensures rapid, offline inference leveraging unified memory.
-3. Start the local server (runs on `localhost:11434` by default).
-4. **Fork `geo-lm`** and wire `geo_lm/ai/` to Ollama; confirm document → DSL workflow runs with **no cloud API keys**.
-
-### Phase B: Document Ingestion & Extraction (within `geo-lm` patterns)
-1. **Dependencies:** follow upstream `pyproject.toml`; ensure **PyMuPDF** (or upstream PDF path), **FastAPI**, **GemPy**, and add **geospatial/ML** libs as needed (see §7): e.g. `geopandas`, `pyproj`, `scipy`, `pykrige` or `gstools`.
-2. **PDF ingestion:** use upstream **`/api/documents/upload`** and **`/api/documents/{id}/extract`** (or equivalent) so OCR/text extraction stays consistent with the DSL workflow.
-3. **LLM → DSL:** preserve the **geology DSL** as the structured target (not raw JSON only). Use strict prompting + `GEO_LM_MAX_DSL_RETRIES` (or forked equivalent) so invalid DSL is repaired before GemPy.
-4. **Optional keyword pre-filter:** retain paragraph/chunk ranking (e.g. “depth”, “schist”, “marble”, “contact”) to reduce tokens sent to Ollama.
-
-### Phase C: Machine Learning — Sparse Data Conditioning (see §7)
-Run **after** you have point constraints (from DSL/GemPy inputs or from extracted numeric tables) and **before** or **in parallel with** full implicit modeling:
-1. Build a **2D field** (e.g. depth to key horizon) on a regular grid over the **demo AOI** (area of interest), using **Kriging / GP / RBF** with explicit variogram or length-scale choices.
-2. Output: **GeoJSON** contours or a small **numpy grid** + world-file or bbox metadata for optional map overlay; feed **representative points** into GemPy if they improve stability.
-
-### Phase D: The 3D Modeling Bridge (GemPy)
-1. Parse validated DSL; map entities to `gempy.create_model()` / `init_data()` per upstream conventions.
-2. Run interpolation / implicit modeling; export surfaces or volumes to **`.gltf`** or **`.obj`** for the web viewer.
-3. Export **scalar fields** (e.g., depth-to-bedrock at grid nodes) for **§8 optimization** — precompute once per pipeline run, reuse for sliders.
-
-### Phase E: Optimization & “What-If” Simulation (see §8)
-1. Define a **low-dimensional decision vector** (e.g., borehole depth, lateral offset, or tunnel crown depth).
-2. Evaluate **objectives and constraints** using **fast lookups** into the precomputed grid (not a full GemPy re-run per evaluation).
-3. Expose results in the UI: optimal value, constraint violations (if any), and **plain-language** interpretation for judges.
-
-### Phase F: Deployment
-1. **API:** `uvicorn api.main:app` (or Poetry equivalent) on the demo machine; enable **CORS** for the Vercel deployment origin.
-2. **Web:** **Next.js on Vercel** (separate repo); for judges + local GPU narrative, expose FastAPI with **Ngrok** or **Cloudflare Tunnel** and set **`NEXT_PUBLIC_API_BASE_URL`** on Vercel to that public URL (or use a stable preview tunnel).
-3. **React Three Fiber** loads the geology **`.gltf`** from the backend URL or from **`public/exports/`** after a copy step (see §10). MapLibre loads **basemap + GeoJSON + Open Data layers** from **`public/layers/`** (checked in or copied from Part 3’s ingest output).
+Every run writes a self-describing `manifest.json` plus mesh, field,
+DSL, extraction, and validation artifacts under
+`data/runs/{run_id}/`. The frontend fetches them by absolute URL,
+stamped from `GEO_NYC_PUBLIC_BASE_URL`.
 
 ---
 
-## 5. The Winning Pitch
-*"City planners waste months manually extracting data from 400-page USGS PDFs to plan geothermal grids and subway expansions. We built Urban Subsurface AI. It uses a 100% local, edge-computed AI agent to read those unstructured reports and instantly generate interactive 3D infrastructure models. No cloud latency, absolute data privacy, and a seamless visual pipeline to build the city of the future safely."*
+## Quick start
+
+### Prerequisites
+
+- **macOS / Linux** (M-series Mac is the reference platform).
+- **Python 3.12** (3.13 is *not* supported — `pyproject.toml` pins
+  `>=3.12,<3.13` because of GemPy / scientific wheels).
+- **[Ollama](https://ollama.com)** running locally on
+  `http://localhost:11434`.
+- (Optional) **GemPy** for full implicit modeling. The default
+  `RBFRunner` is the always-available fallback, so you can ship a
+  demo without GemPy.
+- (Optional, for live demo with Vercel) **ngrok** or
+  **cloudflared** to expose the laptop API to the internet.
+
+### 1. Install Python 3.12 + Ollama
+
+```bash
+# Homebrew (recommended on macOS)
+brew install python@3.12 ollama
+```
+
+Start the Ollama daemon (in its own shell or as a background service):
+
+```bash
+ollama serve
+```
+
+Pull the demo model **once**:
+
+```bash
+ollama pull llama3.1:8b
+```
+
+Sanity-check Ollama is up:
+
+```bash
+curl -s http://localhost:11434/api/tags | jq .
+```
+
+### 2. Clone, venv, install
+
+```bash
+git clone https://github.com/somaditya/geo-nyc.git
+cd geo-nyc
+
+python3.12 -m venv .venv
+source .venv/bin/activate
+
+pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+To enable the *real* GemPy modeling path (optional), also install:
+
+```bash
+pip install -e ".[modeling]"
+```
+
+`RBFRunner` is the default mesh engine and works without GemPy. The
+service detects whichever runners are importable and records the
+chosen one in the run manifest.
+
+### 3. Configure environment
+
+Copy the template and edit as needed:
+
+```bash
+cp .env.example .env
+```
+
+The defaults work for **local development** out of the box:
+
+```bash
+GEO_NYC_OLLAMA_BASE_URL=http://localhost:11434
+GEO_NYC_OLLAMA_MODEL=llama3.1:8b
+GEO_NYC_USE_FIXTURES=true
+GEO_NYC_API_HOST=127.0.0.1
+GEO_NYC_API_PORT=8000
+GEO_NYC_PUBLIC_BASE_URL=http://localhost:8000
+```
+
+See [Environment variables](#environment-variables) for the full list,
+and [Deploying with the Vercel frontend](#deploying-with-the-vercel-frontend)
+for the values to change when running behind a tunnel.
+
+### 4. Run the server
+
+Two equivalent ways:
+
+```bash
+# Console script (installed by pyproject.toml)
+geo-nyc
+
+# Or, classically:
+uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+OpenAPI / Swagger UI: <http://localhost:8000/docs>.
+
+### 5. Smoke test
+
+```bash
+curl -s http://localhost:8000/api/health      | jq .
+curl -s http://localhost:8000/api/llm/health  | jq .
+```
+
+Both should return `"status": "ok"`. If `llm/health` says `"down"`,
+[Ollama is not reachable](#ollama-not-reachable).
 
 ---
 
-## 6. Geospatial Intelligence — NYC Open Data Integration
+## Running the demo
 
-### 6.1 Requirements
-* **Purpose:** Give **urban risk / infrastructure context** next to interpreted subsurface geology — aligned with hackathon **GIS** and **housing & infrastructure** themes.
-* **CRS:** All layers served to the browser as **EPSG:4326 (WGS84)** GeoJSON unless the map library uses another default; reproject in Python with `pyproj` / `geopandas`.
-* **Performance / AOI (locked for v1):** The default **demo AOI is three boroughs — Manhattan, Bronx, and Queens**. This matches **USGS I-2306** (“Bronx County and parts of … Queens”) and the Manhattan-focused reports in §3 better than a **Brooklyn**-centric cut. **Implementation complexity is the same** as any other three-borough filter: download [Borough Boundaries](https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne), **filter** `boro_code` / `BoroName` to **Manhattan (1), Bronx (2), Queens (4)**, dissolve/union, then clip/simplify all other layers. **Optional swap:** use **Brooklyn (3) instead of Queens (4)** only if the narrative shifts (e.g. Kings-heavy infrastructure layers); one integer change in the ingest script. **Later:** add Brooklyn or go citywide by widening the filter.
-* **Geology vs GIS scope:** With the v1 AOI, **Brooklyn and Staten Island** are **outside** the clipped map unless you extend the filter. **GemPy / DSL** evidence aligns with §3 across **Manhattan, Bronx, and Queens**; label UI copy so judges know the **model** is report-driven.
-* **Provenance:** Store **dataset name, download date, and URL** in `static/layers/manifest.json` for attribution in the UI footer.
-* **No live Socrata dependency during demo:** Pre-download and version-control **small** GeoJSON artifacts under `static/layers/` (or fetch at build time in CI). Avoid demo failure from API throttling.
+### Fixture mode (offline, deterministic, ~1 second)
 
-### 6.2 Implementation checklist
-1. **Layer manifest:** JSON listing `id`, `title`, `type` (`fill` / `line`), `geojson_path`, `opacity`, `legend_color`, `source_url`.
-2. **Ingest script:** `scripts/fetch_open_data.py` (or Makefile target) that:
-   * Downloads selected City datasets (GeoJSON/Shapefile ZIP from [NYC Open Data](https://opendata.cityofnewyork.us/)).
-   * Unzips, reads with GeoPandas, reprojects to WGS84, clips to AOI bbox, simplifies, writes **`public/layers/*.geojson`** in the **Next.js repo** (and/or `data/layers/` in the backend for reproducibility — see §10).
-3. **Frontend:** MapLibre `addSource` / `addLayer` per manifest entry; toggles in the layer panel mirror §2.
-4. **Backend (optional):** Endpoint `GET /api/layers` returns manifest for dynamic UIs.
+This is what `/api/run` does by default — no PDF, no LLM, no GemPy.
+It exists so the demo always finishes, and so Part 1 (frontend) and
+Part 3 (GIS/optimizer) can integrate against a stable artifact set.
 
-### 6.3 Pinned reference layers & starter datasets
-**AOI mask (v1: Manhattan + Bronx + Queens — first step in ingest pipeline):**
+```bash
+curl -s -X POST http://localhost:8000/api/run \
+  -H "content-type: application/json" \
+  -d '{}' | jq '.run_id, .artifacts | length, .mesh_summary, .field_summary'
+```
 
-| Dataset | URL | Role |
-|--------|-----|------|
-| **Borough Boundaries** (land; five polygons) | [data.cityofnewyork.us/…/Borough-Boundaries/gthc-hcne](https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne) | **Filter** to **BoroCode 1, 2, 4** (Manhattan, Bronx, Queens); dissolve/union; clip/simplify all other layers to this footprint; optional basemap overlay for borough names. |
-| **Borough Boundaries (water areas included)** | [data.cityofnewyork.us/…/Borough-Boundaries-water-areas-included-/wh2p-dxnf](https://data.cityofnewyork.us/City-Government/Borough-Boundaries-water-areas-included-/wh2p-dxnf) | Same filter **(1, 2, 4)**; use only if shoreline / harbor geometry matters — usually **heavier** than land-only. |
+You should see something like:
 
-**Additional layers** — confirm export format and metadata on the portal; clip to the **same three-borough AOI** and add to `manifest.json`:
+```json
+"r_20260426181022_a1b2c3d4"
+6
+{ "engine": "rbf", "fallback_from": [], "vertices": 4225, "faces": 8192 }
+{ "engine": "rbf", "fallback_from": [], "resolution_m": 50, "stats": { ... } }
+```
 
-| Theme | Intent | Notes |
-|--------|--------|--------|
-| **Flood / storm surge / hydrology-related zones** | Above-ground hazard context vs subsurface excavation risk | Use the **current** FEMA/NYC flood or storm-surge layers the portal exposes; **clip + simplify** to the v1 AOI. |
-| **Subsurface infrastructure hints** | Tunnels, large water / transit alignments where publicly available as line/polygon layers | Prefer layers with clear metadata; many are approximate — label as **planning context**, not survey. |
-| **Water distribution / subsurface utilities** (if available and usable) | Narrative link to “why geology matters for mains and tunnels” | Often fragmented; include only if geometry is manageable after simplify. |
-| **Neighborhood tabulation areas** (optional) | Finer choropleth than boroughs | Heavier geometry; simplify aggressively or skip if borough toggle is enough. |
+Open the generated `.glb` directly in a browser (or in
+[gltf.report](https://gltf.report/)) using the `mesh_url` field.
 
-**“Snapping” honesty:** PDF-derived geology may start **unreferenced**. Phase 1 = **visual overlay** only. Phase 2 (stretch) = manual **bbox** or control points tying one formation outcrop/trace to a line on an Open Data layer.
+### Real PDF mode (live LLM)
 
----
+Upload a PDF, extract its text, then run the full pipeline with the
+LLM enabled:
 
-## 7. Machine Learning — Interpolation & Field Smoothing
+```bash
+# 1. Upload (returns a content-hash document_id)
+DOC_ID=$(curl -s -X POST http://localhost:8000/api/documents/upload \
+  -F "file=@./planning/sample-usgs-i2306.pdf" | jq -r .id)
 
-### 7.1 Requirements
-* **Goal:** Turn **sparse, noisy constraints** (from DSL, tables, or manual picks) into a **coherent 2D field** over the AOI so maps and optimization have a continuous surface to sample.
-* **Scope (hackathon):** **2D scalar field** only (e.g., **elevation of a key contact** or **depth to bedrock**), not a full learned surrogate of GemPy’s 3D implicit solve.
-* **Interpretability:** Document kernel / variogram choice in README; show **uncertainty** if the library exposes it (Kriging variance) — optional contour or hatch for “high variance” regions.
+# 2. Run text extraction (PyMuPDF)
+curl -s -X POST http://localhost:8000/api/documents/$DOC_ID/extract | jq '.pages_with_text'
 
-### 7.2 Implementation options (pick one primary)
-1. **Ordinary Kriging:** `PyKrige` on scattered `(x, y, z)` points → regular grid → export contours as GeoJSON via `matplotlib` contourf → `shapely` polygonize (or manual contour lines).
-2. **Gaussian Process / RBF:** `sklearn.gaussian_process` or `scipy.interpolate.RBFInterpolator` for rapid prototyping when variogram fitting is finicky.
-3. **GSTools:** variogram analysis + Kriging with clearer geostat narrative for judges.
+# 3. Trigger a full run with the LLM enabled
+curl -s -X POST http://localhost:8000/api/run \
+  -H "content-type: application/json" \
+  -d "{\"document_id\":\"$DOC_ID\",\"use_llm\":true}" | jq '.run_id, .llm_summary, .dsl_summary'
+```
 
-### 7.3 Pipeline integration
-* **Input points:** From validated DSL (e.g., contacts with approximate XY if georeferenced; else use **synthetic XY** along a 1D profile for demo-only, clearly labeled).
-* **Output:** NumPy grid + bbox → **pickle or `.npz`** in `data/fields/`; **GeoJSON** isolines for the map; optional **CSV** sample for the optimizer in §8.
-* **Feasibility guard:** If fewer than **N** valid points, skip Kriging and show a **“insufficient data”** banner; do not fabricate a pretty but meaningless surface.
+If the LLM produces invalid JSON or DSL, the service automatically
+runs the **repair loop** up to `GEO_NYC_LLM_MAX_REPAIR_ATTEMPTS` times
+before falling back to the fixture path. Either way the response
+shape is identical.
 
 ---
 
-## 8. Optimization & Simulation — Infrastructure “What-If”
+## Deploying with the Vercel frontend
 
-### 8.1 Requirements
-* **Goal:** Demonstrate **decision support** for **urban infrastructure** (geothermal borefield **or** shallow tunnel / utility corridor) using **optimization under simple constraints** — aligned with hackathon **optimization and simulation**.
-* **Hard rule:** The objective function **must not invoke GemPy** per slider tick. Use **precomputed** scalar fields from §7/§4D or **cheap interpolators**.
-* **Transparency:** Show **constraints** (e.g., minimum rock cover, maximum grade, depth bounds) and **numeric optimum** in the UI.
+The frontend is a separate Next.js app deployed at
+[geo-nyc.vercel.app](https://geo-nyc.vercel.app). Because the backend
+runs on your laptop (not in the cloud), you have to make two things
+true:
 
-### 8.2 Mathematical sketch (customize per demo)
-* **Decision variables:** Example — `d` = bore depth (m) or tunnel crown depth; optional 2D: `(east, north)` offset along a corridor polyline.
-* **Objective:** e.g. minimize `C(d) = c1 * drilling_length + c2 * risk_proxy(d)` where `risk_proxy` comes from **distance to flood zone**, **shallow bedrock** (from ML field), or **weak formation** thickness read from the grid.
-* **Constraints:** `d_min ≤ d ≤ d_max`; `gradient ≤ g_max` along corridor; optional **avoid polygon** (protected zone) as penalty or hard constraint.
-* **Solver:** `scipy.optimize.minimize` (SLSQP or L-BFGS-B for bounds) or **brute grid search** over 1D `d` for demo reliability.
+1. **Vercel can reach the laptop API** → expose port 8000 via a
+   tunnel.
+2. **Run-manifest URLs are publicly fetchable** → tell the backend
+   what its public URL is.
 
-### 8.3 Implementation checklist
-1. **Precompute:** After each full pipeline run, write `data/fields/cost_raster_meta.json` (bbox, resolution, CRS) + `cost_grid.npz` (or reuse depth grid from §7).
-2. **API:** `POST /api/optimize` with JSON body `{ "mode": "geothermal" | "tunnel", "params": { ... } }` returns `{ "optimal_d": ..., "objective": ..., "constraints_ok": true/false }`.
-3. **UI:** Sliders bound to API calls with **debounce**; display **spinner** only if optimization exceeds ~200ms.
+### 1. Tunnel the laptop API
+
+Pick one. You only need one running.
+
+| Tool | Command | Notes |
+|---|---|---|
+| **ngrok** | `ngrok http 8000` | `https://<random>.ngrok-free.app`. URL rotates on restart on the free plan. |
+| **Cloudflare Tunnel** | `brew install cloudflared && cloudflared tunnel --url http://localhost:8000` | Free, more stable URLs with a named tunnel. |
+| **Tailscale Funnel** | `tailscale funnel 8000` | Stable `*.ts.net` URL if you already use Tailscale. |
+
+Note the resulting `https://...` URL.
+
+### 2. Backend — bind to all interfaces and advertise the public URL
+
+In `geo-nyc/.env`:
+
+```bash
+GEO_NYC_API_HOST=0.0.0.0
+GEO_NYC_API_PORT=8000
+GEO_NYC_PUBLIC_BASE_URL=https://<your-tunnel-host>
+```
+
+`GEO_NYC_PUBLIC_BASE_URL` is what the run service stamps into every
+`mesh_url` / `field_url` it writes into a manifest, so the frontend
+can fetch them as absolute URLs from any origin.
+
+Restart the backend after editing `.env`.
+
+### 3. CORS — already wired for Vercel
+
+`Settings.cors_origins` ships with `https://geo-nyc.vercel.app`
+included by default, and `Settings.cors_origin_regex` accepts every
+Vercel preview URL of the form `geo-nyc-*.vercel.app`, so feature
+branch deployments work without redeploying the backend.
+
+To allow extra origins (e.g. another teammate's preview):
+
+```bash
+GEO_NYC_CORS_ORIGINS=http://localhost:3000,http://localhost:5173,https://geo-nyc.vercel.app,https://other.example.com
+GEO_NYC_CORS_ORIGIN_REGEX=^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$
+```
+
+### 4. Frontend (Vercel) — point at the tunnel
+
+In the Vercel dashboard for `geo-nyc` → Settings → Environment
+Variables, set:
+
+```
+NEXT_PUBLIC_API_BASE_URL = https://<your-tunnel-host>
+```
+
+then trigger a redeploy.
+
+### 5. End-to-end check
+
+From any machine *not* on your laptop's wifi:
+
+```bash
+curl https://<your-tunnel-host>/api/health
+curl -X POST https://<your-tunnel-host>/api/run -H "content-type: application/json" -d '{}'
+```
+
+The second call returns a manifest whose `mesh_url` and `field_url`
+are absolute and openable in a browser. If both work, the live demo
+pipe is clean.
 
 ---
 
-## 9. Team Workstreams (3-Person Split)
+## API contracts
 
-The work is divided into three **independently buildable** parts so each member owns a clear surface and can develop in **parallel** with mocks until integration. Each part below lists **scope, owned files/endpoints, deliverables, dependencies on other parts, and mocks** to use while waiting on a teammate.
+All endpoints are under `/api/*`. Static artifacts live under
+`/static/exports/*` and `/static/fields/*`.
 
-### Part 1 — Frontend (Member A)
-**Owns:** the entire user-facing app as a **separate Next.js repository** deployed on **Vercel**, plus **all UI/UX from §2**. **No Python.** Treat **[geo-lm `web/`](https://github.com/williamjsdavis/geo-lm/tree/main/web)** as a **catalog of features to re-build**, not code to copy: e.g. document listing, upload/progress patterns, API client conventions, page structure — then implement in **Next.js** (App Router, TypeScript) with your own components.
+### Health
 
-* **Scope**
-  * App shell: minimalist white theme, layout (top bar + left sidebar + main stage + bottom strip per §2).
-  * **Map (2D):** MapLibre (or Mapbox-compatible) with **basemap**, **three-borough outline** (Manhattan, Bronx, Queens), and **NYC Open Data layers** from `public/layers/manifest.json` (produced by Part 3).
-  * **3D viewer:** React Three Fiber loading `.gltf` from **`public/exports/`** or from a URL returned by **`POST /api/run`** (Part 2).
-  * **Layer panel:** toggles, opacity, legend rendered from `manifest.json`.
-  * **What-if panel:** sliders/inputs calling **`${NEXT_PUBLIC_API_BASE_URL}/api/optimize`** (Part 3), with debounce, loading state, constraint readouts.
-  * **About / provenance footer:** dataset names, USGS report citations, attribution strings.
-  * **Env:** `NEXT_PUBLIC_API_BASE_URL` for all backend calls; never hardcode tunnel URLs in source (use Vercel env vars).
-* **Owned files (typical) — Next repo root**
-  * `src/components/MapView.tsx`, `SubsurfaceViewer.tsx`, `LayerPanel.tsx`, `WhatIfPanel.tsx`, `src/lib/api.ts`, `app/layout.tsx`, `app/page.tsx`.
-  * `public/layers/manifest.json` (stub → replaced by Part 3 output), `public/layers/*.geojson`, `public/exports/*.gltf`.
-* **Deliverables**
-  1. **Vercel project** green; app boots with **basemap + AOI outline** from stub `manifest.json` + sample `.gltf` in `public/`.
-  2. Layer panel drives MapLibre from manifest; toggles work.
-  3. 3D viewer loads mesh; orbit/pan/reset.
-  4. What-if panel works with **mock** responses locally and **live** `/api/optimize` when tunnel + env are set.
-  5. Polished, minimal UI per §2; no dark mode; mobile is **not** a priority.
-* **Dependencies on others**
-  * Part 2: **`.gltf`** URL or file + **`POST /api/run`** response shape (§10).
-  * Part 3: **`manifest.json`** + GeoJSON in `public/layers/` (or served via **`GET /api/layers`**); **`/api/optimize`** on the backend.
-* **Mocks while waiting**
-  * `public/layers/manifest.json` — stub borough + fake flood polygon.
-  * `public/exports/sample.gltf` — small demo mesh.
-  * **Mock optimizer** in `api.ts` when `NEXT_PUBLIC_API_BASE_URL` is empty or a `?mock=1` flag.
+```http
+GET /api/health
+```
 
-### Part 2 — AI Extraction & 3D Modeling Backbone (Member B)
-**Owns:** the **forked `geo-lm` core**: local LLM, document/DSL pipeline, GemPy modeling, mesh export, and the “core” FastAPI endpoints already in upstream.
+```json
+{ "status": "ok", "version": "0.1.0", "use_fixtures": true, "enable_gempy": false }
+```
 
-* **Scope**
-  * **Fork & local-only inference:** replace cloud LLM clients in `geo_lm/ai/` with an **Ollama** adapter (per §1.1, §4 Phase A). Verify the **DSL workflow** runs **without** Anthropic/OpenAI/Llama API keys.
-  * **NYC PDF ingestion:** wire the three USGS PDFs from §3 through `/api/documents/upload` + `/api/documents/{id}/extract`; tune prompts so DSL captures formations, contacts, depths, dip.
-  * **DSL → GemPy:** parse validated DSL (Lark grammar from upstream), build the model, run interpolation, and **export the surfaces/volume to `.gltf`** (preferred) or `.obj`.
-  * **Scalar field export for downstream parts:** after each full run, dump a **2D depth-to-bedrock grid** (or other key horizon) plus metadata so Part 3 (ML/optimizer) can consume it.
-  * **`POST /api/run`** (or extend upstream `/api/workflows/{document_id}/process`) to orchestrate ingestion → DSL → GemPy → exports as one button.
-* **Owned files (typical)**
-  * `geo_lm/ai/ollama_client.py` (new), updates to `geo_lm/ai/__init__.py` provider selection.
-  * `geo_lm/graphs/` (LangGraph nodes for the NYC pipeline).
-  * `geo_lm/modeling/gempy_runner.py` (new) for DSL → GemPy → mesh.
-  * `api/routers/runs.py` (new) for `/api/run` and run status.
-  * `data/exports/{run_id}.gltf`, `data/fields/depth.npz`, `data/fields/depth_meta.json` — outputs.
-* **Deliverables**
-  1. **One-command local demo** (e.g. `make run-demo` or a script) that ingests one USGS PDF and writes a deterministic `.gltf` to `data/exports/`.
-  2. DSL workflow stable on the three §3 PDFs (with retries).
-  3. **Scalar field export** present after each run, in the agreed schema (see §10).
-  4. `/api/run` triggers the pipeline and returns the **paths** to the produced `.gltf` + field files.
-* **Dependencies on others**
-  * Part 1 needs to know the **`.gltf` path convention** (see §10).
-  * Part 3 consumes the **scalar field** for ML + optimizer — Part 2 must publish the grid + meta JSON in the agreed shape.
-* **Mocks while waiting**
-  * If Ollama integration is slow, keep a **synthetic DSL** snapshot under `tests/fixtures/` and run GemPy on that to exercise the export path end-to-end.
-  * Provide a **stub** `data/fields/depth.npz` from a smooth analytic surface so Part 3 can develop the ML/optimizer immediately.
+```http
+GET /api/llm/health
+```
 
-### Part 3 — GIS Open Data, ML Field, Optimization API (Member C)
-**Owns:** every **spatial/analytical** layer that augments the geology model — **NYC Open Data ingest**, **layer manifest service**, **Kriging / interpolation** of the 2D field, and the **`/api/optimize`** endpoint.
+```json
+{
+  "status": "ok",
+  "provider": "ollama",
+  "base_url": "http://localhost:11434",
+  "model": "llama3.1:8b",
+  "model_pulled": true,
+  "available_models": ["llama3.1:8b"],
+  "detail": null
+}
+```
 
-* **Scope**
-  * **Open Data ingestion (§6):** `scripts/fetch_open_data.py` filters [Borough Boundaries](https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne) to **BoroCode 1, 2, 4** (Manhattan, Bronx, Queens), dissolves to one AOI multipolygon, and clips/simplifies the additional themed layers (flood, infrastructure-context). Writes GeoJSON + **`manifest.json`** to **`data/layers/`** in the backend repo (committed or gitignored per team policy) and documents a **one-step copy** into the Next repo’s **`public/layers/`** for static hosting (or rely on `GET /api/layers` + base64/URL — prefer file copy for hackathon simplicity).
-  * **Layer service (optional):** `GET /api/layers` returns the same manifest dynamically (helpful if hosting layers behind the API tunnel rather than from frontend static).
-  * **ML / interpolation (§7):** consume Part 2’s `data/fields/depth.npz` (or scattered points from DSL) and produce a **smoothed grid + GeoJSON contours** under `data/layers/depth_contours.geojson` (then sync to Next **`public/layers/`**). Use **PyKrige / GSTools / RBF**; document kernel and any uncertainty output.
-  * **Optimization API (§8):** `POST /api/optimize` reading the precomputed grid (no GemPy at runtime), running `scipy.optimize` or a grid search over the chosen decision variables, and returning a clear JSON payload.
-  * **Provenance:** keep dataset name + URL + download date in `manifest.json` for the UI footer.
-* **Owned files (typical)**
-  * `scripts/fetch_open_data.py`, `scripts/build_field.py`, optional `scripts/sync_layers_to_frontend.sh` (copies `data/layers/*` → Next `public/layers/`).
-  * `api/routers/layers.py`, `api/routers/optimize.py` (new).
-  * `data/layers/*.geojson`, `data/layers/manifest.json` (backend); mirrored under **`public/layers/`** in the Vercel repo after sync.
-* **Deliverables**
-  1. Three-borough AOI mask + at least **one** additional Open Data layer (flood is highest priority) clipped, simplified, and visible in Part 1’s UI.
-  2. ML grid + contours produced from a real or stub depth field.
-  3. `POST /api/optimize` returns sensible numbers under demo constraints in **<200 ms**.
-  4. `manifest.json` with provenance complete enough to drive the UI legend and footer attribution.
-* **Dependencies on others**
-  * Part 2 publishes the **scalar field**; Part 3 can start against a **stub field** (analytic surface) while waiting.
-  * Part 1 consumes **manifest.json** and calls `/api/optimize`.
-* **Mocks while waiting**
-  * Hardcoded depth field from a Gaussian bump or linear gradient until Part 2 ships real GemPy output.
-  * A static `manifest.json` exposing only Borough Boundaries + a single test polygon, expanded as more datasets land.
+### Documents
 
-### Workstream Dependency Graph (mermaid)
-```mermaid
-flowchart LR
-  subgraph Part2 [Part 2 - AI + GemPy]
-    PDF[USGS PDFs]
-    Ollama[Ollama / DSL]
-    Gempy[GemPy mesh]
-    Field[Scalar field]
-    PDF --> Ollama --> Gempy --> Field
-  end
+| Method & path | Purpose | Notes |
+|---|---|---|
+| `POST /api/documents/upload` (multipart `file`) | Upload a PDF; returns `DocumentRecord` | Idempotent on SHA256 of the bytes. |
+| `POST /api/documents/{id}/extract` | Run PyMuPDF text extraction; returns `ExtractionResult` | Cached per document id. |
+| `GET /api/documents` | List `DocumentSummary` records | `?limit=` (default 100). |
+| `GET /api/documents/{id}` | Full `DocumentRecord` | 404 if unknown. |
+| `GET /api/documents/{id}/extraction` | Cached `ExtractionResult` | 404 if not extracted yet. |
 
-  subgraph Part3 [Part 3 - GIS + ML + Optimize]
-    OpenData[NYC Open Data]
-    Manifest[manifest.json]
-    Krige[Kriging / RBF]
-    Optim["POST /api/optimize"]
-    OpenData --> Manifest
-    Field --> Krige --> Optim
-  end
+### Runs
 
-  subgraph Part1 [Part 1 - Frontend]
-    Map[MapLibre]
-    Viewer[R3F viewer]
-    WhatIf[What-if panel]
-  end
+```http
+POST /api/run
+Content-Type: application/json
 
-  Manifest --> Map
-  Gempy --> Viewer
-  Optim --> WhatIf
+{
+  "document_id": null,         // null → fixture mode
+  "use_fixtures": null,        // override env default for this run
+  "fixture_name": null,        // default: "nyc_demo"
+  "use_llm": false,            // requires document_id when true
+  "top_k_chunks": null         // 1..32, optional
+}
+```
+
+Response: a full `RunManifest` (also written to
+`data/runs/{run_id}/manifest.json`):
+
+```json
+{
+  "run_id": "r_20260426181022_a1b2c3d4",
+  "status": "succeeded",
+  "created_at": "2026-04-26T18:10:22Z",
+  "updated_at": "2026-04-26T18:10:23Z",
+  "mode": "fixture",
+  "request": { "use_llm": false },
+  "artifacts": [
+    {
+      "kind": "mesh",
+      "filename": "mesh.glb",
+      "relative_path": "r_20260426181022_a1b2c3d4/mesh.glb",
+      "url": "http://localhost:8000/static/exports/r_20260426181022_a1b2c3d4/mesh.glb",
+      "bytes": 87340,
+      "media_type": "model/gltf-binary",
+      "metadata": { "engine": "rbf", "vertices": 4225, "faces": 8192 }
+    },
+    {
+      "kind": "field",
+      "filename": "depth_to_bedrock.npz",
+      "relative_path": "r_20260426181022_a1b2c3d4/depth_to_bedrock.npz",
+      "url": "http://localhost:8000/static/fields/r_20260426181022_a1b2c3d4/depth_to_bedrock.npz",
+      "bytes": 16512,
+      "metadata": { "engine": "rbf", "schema_version": 2 }
+    }
+    // ...field_meta, dsl, extraction, validation_report
+  ],
+  "validation": { "is_valid": true, "error_count": 0, "warning_count": 0, "errors": [], "warnings": [] },
+  "extent": { "x_min": 0, "x_max": 1000, "y_min": 0, "y_max": 1000, "z_min": -200, "z_max": 0 },
+  "mesh_summary": { "engine": "rbf", "fallback_from": [], "duration_ms": 142 },
+  "field_summary": { "engine": "rbf", "fallback_from": [], "resolution_m": 50 }
+}
+```
+
+| Method & path | Purpose |
+|---|---|
+| `GET /api/run/{run_id}` | Re-fetch a manifest by id. |
+| `GET /api/runs?limit=50` | List recent manifests, newest first. |
+
+Status codes:
+
+- `201 Created` for a successful new run.
+- `404 Not Found` if `document_id` or `run_id` is unknown.
+- `422 Unprocessable Entity` if the run pipeline fails validation
+  (e.g. invalid DSL even after the repair loop).
+
+---
+
+## Static asset URLs
+
+The FastAPI app mounts two static dirs:
+
+| Mount | Local dir | Used for |
+|---|---|---|
+| `/static/exports` | `data/exports/` | Per-run `.glb` mesh files (`<run_id>/mesh.glb`). |
+| `/static/fields`  | `data/fields/`  | Per-run `depth_to_bedrock.npz` + `.json` sidecar (`<run_id>/depth_to_bedrock.npz`). |
+
+Each `Artifact.url` in a manifest is built from
+`GEO_NYC_PUBLIC_BASE_URL`, so:
+
+- Local dev → `http://localhost:8000/static/exports/r_<timestamp>_<hex8>/mesh.glb`
+- Vercel demo → `https://<your-tunnel>/static/exports/r_<timestamp>_<hex8>/mesh.glb`
+
+Run ids are sortable by creation time (`r_YYYYMMDDhhmmss_<hex8>`), so
+sorting filenames alphabetically gives newest-last.
+
+The frontend should always use `Artifact.url` directly rather than
+joining paths itself.
+
+---
+
+## Field grid schema
+
+Per the team-wide contract in §10.4 of the blueprint, every run
+writes a `depth_to_bedrock.npz` plus a JSON sidecar.
+
+**`depth_to_bedrock.npz`** (NumPy v1 archive):
+
+| Key | Shape | dtype | Meaning |
+|---|---|---|---|
+| `grid` | `(ny, nx)` | `float32` | Depth from ground to bedrock, **meters below surface**. |
+| `x` | `(nx,)` | `float32` | Easting coordinates of grid columns (projected CRS). |
+| `y` | `(ny,)` | `float32` | Northing coordinates of grid rows (projected CRS). |
+| `mask` | `(ny, nx)` | `uint8` | *Optional* — `1` for valid cells, `0` for outside-AOI / nodata. |
+
+**`depth_to_bedrock.json`** (sidecar):
+
+```json
+{
+  "schema_version": 2,
+  "name": "depth_to_bedrock_m",
+  "units": "meters_below_surface",
+  "source": "rbf",
+  "run_id": "r_20260426181022_a1b2c3d4",
+  "crs": "EPSG:32618",
+  "projected_crs": "EPSG:32618",
+  "geographic_crs": "EPSG:4326",
+  "bbox": [-74.05, 40.66, -73.92, 40.81],
+  "bbox_xy_m": { "x_min": 583000.0, "x_max": 595000.0, "y_min": 4505000.0, "y_max": 4521000.0 },
+  "extent": { "x_min": 583000.0, "x_max": 595000.0, "y_min": 4505000.0, "y_max": 4521000.0, "z_min": -250.0, "z_max": 50.0 },
+  "resolution_m": 50,
+  "nx": 64, "ny": 64,
+  "shape": [64, 64],
+  "dtype": "float32",
+  "has_mask": false,
+  "stats": { "min": 0.5, "max": 187.3, "mean": 42.8, "valid_cells": 4096 }
+}
+```
+
+`source` is always one of `"gempy" | "rbf" | "synthetic" | "stub"`,
+recording the actual fallback that produced the field. The 3-tier
+chain in priority order is:
+
+1. **RBF** interpolation from `GemPyInputs.surface_points` (preferred —
+   the LLM's evidence drives the surface).
+2. **Mesh resample** from the bedrock layer of the produced `.glb`.
+3. **Stub** — a deterministic smooth field. Always succeeds.
+
+---
+
+## Environment variables
+
+All variables are prefixed `GEO_NYC_` and loaded from `.env` by
+`pydantic-settings`.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `GEO_NYC_LLM_PROVIDER` | `ollama` | Only `ollama` is supported. Cloud providers are intentionally absent. |
+| `GEO_NYC_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP base URL. |
+| `GEO_NYC_OLLAMA_MODEL` | `llama3.1:8b` | Model used for extraction. Pull with `ollama pull`. |
+| `GEO_NYC_OLLAMA_FAST_MODEL` | *unset* | Optional override for relevance / repair calls. |
+| `GEO_NYC_LLM_TEMPERATURE` | `0.2` | Sampling temperature. |
+| `GEO_NYC_LLM_MAX_TOKENS` | `4096` | Max tokens per LLM call. |
+| `GEO_NYC_LLM_TIMEOUT_SECONDS` | `120` | Per-call timeout. |
+| `GEO_NYC_LLM_MAX_REPAIR_ATTEMPTS` | `2` | Repair loop iterations on invalid JSON / DSL. |
+| `GEO_NYC_API_HOST` | `127.0.0.1` | Bind address. Use `0.0.0.0` when tunneling. |
+| `GEO_NYC_API_PORT` | `8000` | API port. |
+| `GEO_NYC_DEBUG` | `false` | Reload + verbose logs. |
+| `GEO_NYC_CORS_ORIGINS` | `http://localhost:3000,http://localhost:5173,https://geo-nyc.vercel.app` | Comma-separated allowed origins. |
+| `GEO_NYC_CORS_ORIGIN_REGEX` | `^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$` | Regex matched against `Origin` for Vercel previews. |
+| `GEO_NYC_PUBLIC_BASE_URL` | `http://localhost:8000` | Used to build absolute artifact URLs in run manifests. |
+| `GEO_NYC_DATA_DIR` | `./data` | Root for all on-disk artifacts. |
+| `GEO_NYC_DOCUMENTS_RAW_DIR` | `./data/documents/raw` | Uploaded PDFs. |
+| `GEO_NYC_DOCUMENTS_EXTRACTED_DIR` | `./data/documents/extracted` | Cached PyMuPDF extractions. |
+| `GEO_NYC_RUNS_DIR` | `./data/runs` | Per-run manifests + intermediate artifacts. |
+| `GEO_NYC_EXPORTS_DIR` | `./data/exports` | Per-run `.glb` mesh files (`/static/exports/<run_id>/`). |
+| `GEO_NYC_FIELDS_DIR` | `./data/fields` | Per-run `depth_to_bedrock.npz` + sidecar (`/static/fields/<run_id>/`). |
+| `GEO_NYC_CACHE_DIR` | `./data/cache` | Misc cache (relevance scores, etc.). |
+| `GEO_NYC_USE_FIXTURES` | `true` | When true, `/api/run` defaults to fixture-mode artifacts. |
+| `GEO_NYC_ENABLE_GEMPY` | `false` | When true, `GemPyRunner` is preferred over `RBFRunner`. |
+| `GEO_NYC_LOG_LEVEL` | `INFO` | One of `DEBUG`, `INFO`, `WARNING`, `ERROR`. |
+
+Trailing slashes on `OLLAMA_BASE_URL` and `PUBLIC_BASE_URL` are
+stripped automatically.
+
+---
+
+## Manual smoke checklist
+
+Run this before a live demo or after a clean pull. (Phase 12.3.)
+
+- [ ] `ollama serve` is running and `ollama list` shows `llama3.1:8b`.
+- [ ] `curl http://localhost:11434/api/tags` returns the model list.
+- [ ] `.venv` is active and `python -c "import geo_nyc; print(geo_nyc.__version__)"` works.
+- [ ] `pytest -q` passes (currently **192 passed, 1 skipped**).
+- [ ] `geo-nyc` (or `uvicorn api.main:app`) starts cleanly.
+- [ ] `curl http://localhost:8000/api/health` → `"ok"`.
+- [ ] `curl http://localhost:8000/api/llm/health` → `"ok"`.
+- [ ] `POST /api/run` with `{}` returns a manifest in <2s.
+- [ ] `POST /api/documents/upload` with a real USGS PDF returns a content-hash id.
+- [ ] `POST /api/documents/{id}/extract` returns `pages_with_text > 0`.
+- [ ] `POST /api/run` with `{ "document_id": "...", "use_llm": true }` returns a manifest with `llm_summary` non-null.
+- [ ] `mesh_url` from the manifest opens in a browser / `gltf.report`.
+- [ ] When tunneling: same `mesh_url` opens from a phone on cellular.
+
+---
+
+## Tests, lint, and CI
+
+```bash
+# Full suite (unit + integration)
+pytest -q
+
+# Lint
+ruff check geo_nyc api tests
+
+# Type check (mypy is configured in pyproject.toml)
+mypy geo_nyc api
+```
+
+Test guidelines:
+
+- LLM tests use `app.dependency_overrides[get_run_service]` to inject
+  stubbed services, so they never hit the network.
+- `tests/test_gempy_runner.py` is auto-skipped when `gempy` is not
+  installed.
+- Integration tests for the field fallback chain live in
+  `tests/test_run_field_fallback.py`.
+
+---
+
+## Repository layout
+
+```
+geo-nyc/
+├── api/                          # FastAPI app + routers
+│   ├── main.py                   # create_app(), CORS, static mounts, lifespan
+│   ├── schemas.py                # Public API Pydantic models
+│   └── routers/                  # /health, /documents, /run(s)
+│
+├── geo_nyc/                      # Core package
+│   ├── ai/                       # Ollama HTTP client + repair-aware extractor
+│   ├── config.py                 # Pydantic settings (env-driven)
+│   ├── documents/                # PDF upload, PyMuPDF extraction, content-hash IDs
+│   ├── extraction/               # Chunking + relevance ranking
+│   ├── prompts/                  # nyc_geology_extraction.md, repair_extraction.md
+│   ├── parsers/                  # Lark DSL grammar, parser, validator, builder
+│   ├── modeling/                 # Constraints, RBF/GemPy/Synthetic runners,
+│   │                             # mesh export, field builder + exporter
+│   └── runs/                     # RunService, RunManifest, fixtures
+│
+├── tests/                        # pytest suite (192+ tests)
+├── data/                         # On-disk artifacts (gitignored at runtime)
+│   ├── fixtures/                 # Bundled demo fixtures
+│   ├── documents/                # raw PDFs + extracted JSON
+│   ├── runs/                     # per-run manifests + artifacts
+│   ├── exports/                  # /static/exports/<run_id>/mesh.glb
+│   └── fields/                   # /static/fields/<run_id>/depth_to_bedrock.{npz,json}
+│
+├── geo-lm/                       # (sibling) Reference repo, NOT imported
+├── planning/                     # Master blueprint + phase tasks
+│
+├── pyproject.toml                # Python 3.12, deps, ruff, pytest config
+├── .env.example                  # Copy to .env and edit
+└── README.md                     # ← you are here
 ```
 
 ---
 
-## 10. Integration Guide
+## Troubleshooting
 
-This section is the **single source of truth** for how the three parts come together. Lock the contracts here **before** branching off, and treat any change as a team-wide decision.
+### Ollama not reachable
 
-### 10.1 Repository layout
-* **Two repos (locked):**
-  1. **Backend:** fork of `geo-lm` — Python, FastAPI, Ollama, GemPy, `scripts/`, `data/exports/`, `data/fields/`, `data/layers/`. Parts **2 and 3** PR here (Part 3 owns routers + ingest under this repo).
-  2. **Frontend:** new **Next.js** repo — Vercel deploy, `public/layers/`, `public/exports/`, MapLibre + R3F. Part **1** PRs here only.
-* **Branches (each repo):** `feat/ai-pipeline`, `feat/gis-ml-optim`, `feat/frontend` → merge to `main` daily. **Contract freeze:** any change to §10.3–10.4 is announced in team chat before merge.
-* **geo-lm `web/`:** reference only; do not treat as a package dependency.
+```bash
+curl http://localhost:11434/api/tags
+```
 
-### 10.2 Shared file layout (canonical paths)
-* **Backend repo:** `data/exports/{run_id}.gltf` — Part 2 writes; expose via FastAPI static mount **or** copy to Next `public/exports/` for same-origin loading.
-* **Backend repo:** `data/fields/depth.npz` + `data/fields/depth_meta.json` — Part 2 writes, Part 3 reads.
-* **Backend repo:** `data/layers/*.geojson` + `data/layers/manifest.json` — Part 3 writes; **sync** to **Next repo** `public/layers/` before Vercel build (or CI artifact step).
-* **Frontend repo:** `public/layers/*`, `public/exports/*.gltf` — what Part 1 actually serves; keep in sync with backend outputs for the demo tag you show judges.
+Should return JSON. If it fails:
 
-### 10.3 API contracts (freeze early)
-* **`POST /api/run`** (Part 2)
-  * Request: `{ "document_id": "..." }` (or omit to use cached USGS bundle).
-  * Response: `{ "run_id": "...", "gltf_path": "/static/exports/...gltf", "depth_field_path": "data/fields/depth.npz", "status": "ok" }`.
-* **`GET /api/layers`** (Part 3, optional if served statically)
-  * Response: `{ "layers": [ { "id": "boroughs", "title": "Boroughs", "type": "fill", "geojson_path": "/layers/boroughs.geojson", "opacity": 0.4, "legend_color": "#888", "source_url": "..." }, ... ] }`.
-* **`POST /api/optimize`** (Part 3)
-  * Request: `{ "mode": "geothermal" | "tunnel", "params": { "d_min": 5, "d_max": 60, ... } }`.
-  * Response: `{ "optimal_d": 24.3, "objective": 1.27, "constraints_ok": true, "diagnostics": { ... } }`.
+- Run `ollama serve` (in a separate terminal).
+- Confirm no firewall/VPN is blocking `localhost:11434`.
+- If `/api/llm/health` says `"down"`, the FastAPI app's
+  `GEO_NYC_OLLAMA_BASE_URL` may be wrong — restart after editing
+  `.env`.
 
-### 10.4 Field grid schema
-* `depth.npz` keys: `grid` (`float32[H, W]`), `mask` (`uint8[H, W]`, optional), `x` (`float32[W]`), `y` (`float32[H]`).
-* `depth_meta.json`: `{ "crs": "EPSG:4326", "bbox": [minx, miny, maxx, maxy], "resolution_m": 50, "units": "meters_below_surface", "source": "gempy" | "kriging_only" | "stub" }`.
+### Model missing
 
-### 10.5 CRS and units
-* All **frontend GeoJSON** in **EPSG:4326**.
-* All **server-side simplification, kriging, and distance constraints** done in a **projected CRS** (suggested **EPSG:6539 — NAD83(2011) / New York Long Island (ftUS)** or **EPSG:32618 / UTM 18N**), then reprojected to 4326 on the way out.
-* Pick **one** projected CRS and document it in `depth_meta.json` so optimization distances are consistent.
+```bash
+ollama list
+ollama pull llama3.1:8b
+```
 
-### 10.6 Local dev workflow
-* **Every member runs Ollama locally** (or points to one shared M4 over LAN) — required even for Parts 1 and 3 if they want true E2E smoke tests.
-* **Run order for a clean E2E:**
-  1. Part 3: `python scripts/fetch_open_data.py` → writes `data/layers/` → run **`scripts/sync_layers_to_frontend.sh`** (or manual copy) → Next `public/layers/`.
-  2. Part 2: `make run-demo` → `data/exports/*.gltf` + `data/fields/depth.npz`; copy **`.gltf`** to Next `public/exports/` if not serving from FastAPI static.
-  3. Part 3: `python scripts/build_field.py` → contours; verify **`POST /api/optimize`** against the grid.
-  4. Part 1: `next dev` with `NEXT_PUBLIC_API_BASE_URL` pointing at local FastAPI **or** tunnel URL.
+Make sure `GEO_NYC_OLLAMA_MODEL` matches the exact tag printed by
+`ollama list` (including the `:8b` suffix).
 
-### 10.7 Demo run-of-show (M4 Pro, ~24 GB)
-1. **Pre-warm:** start Ollama, run pipeline once before doors open so `.gltf` + grids are cached.
-2. **Live story:** open UI → toggle layers in §2 order → click a borough → load 3D mesh → run **what-if** slider → narrate optimization output and constraints.
-3. **Tunnel:** if frontend is hosted on Vercel, expose FastAPI via **Cloudflare Tunnel** or **Ngrok**; keep the URL pinned so Part 1 can hit it without code changes.
+### Python import failures
 
-### 10.8 Verification milestones
-* **M1 — Skeleton (Day 1):** Part 1 boots with stub manifest + sample mesh; Part 2 boots Ollama + a trivial DSL; Part 3 fetches Borough Boundaries and writes manifest.
-* **M2 — Real exports (Day 2):** Part 2 produces a real `.gltf` from one USGS PDF; Part 3 builds a Kriging grid (real or stub points) and serves `/api/optimize`.
-* **M3 — Wire-up (Day 3):** All three parts consume each other’s real outputs; UI shows the real mesh + real layers + real optimizer.
-* **M4 — Polish (final day):** UI states, error toasts, loading skeletons, attribution footer; smoke run-of-show twice.
+- Confirm the venv is active (`which python` should be inside `.venv/bin`).
+- Check Python version: `python --version` must be 3.12.x.
+- Reinstall: `pip install -e ".[dev]"`.
+- Don't mix Poetry and `.venv` — pick one toolchain.
 
-### 10.9 Risks & fallbacks
-* **DSL flakiness on long PDFs:** Part 2 keeps a **fixture DSL** that always renders to a known mesh; if the live LLM run fails on stage, switch to fixture path silently.
-* **Open Data layer too heavy:** drop to AOI mask only; rely on geology mesh for the “wow.”
-* **Optimization stalls:** swap solver to **brute grid search** over the 1D variable; always finishes in <50 ms for demo.
+### LLM output invalid (JSON or DSL)
+
+The repair loop handles most of these automatically. If it still
+fails:
+
+- Lower `GEO_NYC_LLM_TEMPERATURE` (try `0.0`).
+- Reduce `GEO_NYC_LLM_MAX_TOKENS` if the model is rambling.
+- Check `data/runs/{run_id}/llm_attempts/` — every prompt and raw
+  response is persisted for offline debugging.
+- As a last resort, re-run with `use_llm=false` to fall back to the
+  fixture path.
+
+### GemPy fails (or is missing)
+
+- Without `gempy` installed, `RBFRunner` is the default and always
+  works — `mesh_summary.engine` will be `"rbf"`.
+- If GemPy *is* installed but raises during import on Apple Silicon,
+  set `GEO_NYC_ENABLE_GEMPY=false` and rely on RBF for the demo. The
+  manifest records the fallback chain so judges still see the
+  intent.
+
+### Frontend cannot load mesh / CORS error
+
+- Open `mesh_url` directly in a browser: it should download the
+  `.glb` without auth.
+- Confirm `GEO_NYC_PUBLIC_BASE_URL` matches the public URL (it goes
+  into every manifest, so old runs may have stale URLs — re-run
+  after changing it).
+- Check the browser DevTools Console for the exact origin: it must
+  be present in `GEO_NYC_CORS_ORIGINS` or matched by
+  `GEO_NYC_CORS_ORIGIN_REGEX`.
+- For Vercel previews, `geo-nyc-*.vercel.app` should be matched by
+  the default regex; if not, run
+  `python -c "import re; print(re.fullmatch(r'^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$', 'https://YOUR-PREVIEW-URL'))"`
+  and adjust the regex.
+
+### Field grid looks weird / discontinuous
+
+The field can fall back through three tiers (RBF → mesh resample →
+stub). Check `field_summary.engine` and `field_summary.fallback_from`
+in the manifest. If you're hitting `"stub"`, the LLM didn't produce
+enough surface-point evidence — increase `top_k_chunks` or feed a
+denser PDF.
+
+### `ngrok` URL changes every restart
+
+Free-tier ngrok issues a new hostname on each session, which means
+both `GEO_NYC_PUBLIC_BASE_URL` and the Vercel `NEXT_PUBLIC_API_BASE_URL`
+need to be updated. For a stable URL, use `cloudflared` named
+tunnels or a paid ngrok reserved domain.
 
 ---
 
-## 11. Deferred / Out of Scope (for this blueprint revision)
-* Computer vision plate extraction and ONNX/QNN deployment paths (optional future).
-* Full **3D surrogate model** of GemPy (requires large training corpus).
-* Live AR/VR — narrative only unless time permits.
+## Project blueprint
+
+The sections below are the original team-wide blueprint (frontend
+strategy, GIS workstream, optimization, demo run-of-show). They are
+preserved here for new contributors.
+
+### 1. The Core Repository & Frontend Strategy
+
+#### 1.1 Starting point: `geo-lm`
+We use **[williamjsdavis/geo-lm](https://github.com/williamjsdavis/geo-lm)** as a
+**reference** repository (MIT license). It demonstrates the hard parts
+we needed: **PDF upload → document processing → geology DSL → GemPy-
+oriented 3D workflow**, with a **FastAPI** backend (`api/`), core
+package (`geo_lm/`), and an upstream **React + Vite** demo UI
+(`web/`) — **reference only**; our shipped UI is **Next.js on Vercel**.
+
+**What we keep from upstream:**
+* **REST shape:** document upload/extract, DSL parse/validate/create, workflow status endpoints.
+* **DSL pipeline:** structured "geology DSL" as the contract between language understanding and modeling (Lark grammar, validation, retries).
+* **GemPy integration path:** implicit 3D geological modeling after DSL is stable.
+
+**What we re-implemented for this hackathon:**
+* **Local inference only:** upstream defaults to cloud providers (Anthropic, OpenAI, Llama API keys in `.env`). We replaced the LLM client layer with an **Ollama** adapter (`geo_nyc.ai`).
+* **NYC corpus:** generic upstream examples were swapped for the **USGS NYC PDFs** below; prompts encode **NYC stratigraphy** (formations, contacts, depths).
+* **Frontend strategy:** FastAPI backend stays in `geo-nyc`. The product UI is a separate Next.js app on Vercel — **not** a fork of upstream `web/`.
+
+### 2. UI / UX Design Requirements
+* **Aesthetic:** minimalistic, white background, no dark/cyberpunk themes.
+* **Geospatial Mapping Layers:** judges can toggle:
+    1. Base 2D street map.
+    2. NYC borough outline (Manhattan, Bronx, Queens — see §6).
+    3. NYC Open Data layers (flood, infrastructure context).
+    4. Optional ML-derived rasters (smoothed depth-to-bedrock).
+    5. 3D subsurface mesh (`.glb` from this backend).
+* **Optimization UI:** a small "What-if" panel driving §8's toy
+  optimizer against precomputed scalar fields — never blocking the
+  UI on a full GemPy solve.
+
+### 3. Data Acquisition: The Target PDFs
+1. **Master Stratigraphy:** *Bedrock and Engineering Geologic Maps of Bronx County and parts of New York and Queens Counties (USGS I-2306)*.
+2. **Infrastructure Risk Data:** *Newly Mapped Walloomsac Formation in Lower Manhattan and New York Harbor and the Implications for Engineers*.
+3. **Depth Metrics:** *Stratigraphy, Structural Geology and Metamorphism of the Inwood Marble Formation, Northern Manhattan (NYC Water Tunnel Data)*.
+
+### 4. End-to-End Pipeline (mapped to this repo)
+
+| Phase | Repo path | Status |
+|---|---|---|
+| **A. Local AI engine** | `geo_nyc/ai/` (Ollama HTTPX client) | done |
+| **B. Document ingestion** | `geo_nyc/documents/`, `/api/documents/*` | done |
+| **B'. Chunking + relevance ranking** | `geo_nyc/extraction/` | done |
+| **C. LLM → DSL** | `geo_nyc/prompts/`, `geo_nyc/parsers/dsl/` | done |
+| **D. 3D modeling bridge** | `geo_nyc/modeling/{rbf,gempy,synthetic}_runner.py` | done (RBF default, GemPy optional) |
+| **D'. Scalar field export** | `geo_nyc/modeling/field_{builder,export}.py` | done |
+| **E. Optimization** | *Owned by Part 3* — `/api/optimize` | out-of-scope for this repo |
+| **F. Deployment** | `cors_origins`, `cors_origin_regex`, `public_base_url` | done |
+
+### 5. The Pitch
+*"City planners waste months manually extracting data from 400-page
+USGS PDFs to plan geothermal grids and subway expansions. We built
+Urban Subsurface AI. It uses a 100% local, edge-computed AI agent to
+read those unstructured reports and instantly generate interactive
+3D infrastructure models. No cloud latency, absolute data privacy,
+and a seamless visual pipeline to build the city of the future
+safely."*
+
+### 6. NYC Open Data (Part 3)
+
+Owned by Part 3 (separate workstream), not this repo. Key contracts:
+
+- **AOI:** Manhattan + Bronx + Queens (BoroCode 1, 2, 4) clipped from
+  [Borough Boundaries](https://data.cityofnewyork.us/City-Government/Borough-Boundaries/gthc-hcne).
+- **Outputs:** `data/layers/*.geojson` + `data/layers/manifest.json`,
+  synced to the Next.js repo's `public/layers/`.
+- **CRS:** all browser GeoJSON in **EPSG:4326**; server-side analytic
+  work in a projected CRS (suggested **EPSG:32618 / UTM 18N**).
+
+### 7. ML Field Smoothing (overlap with Part 3)
+
+This repo's contribution: per-run `depth_to_bedrock.npz` produced by
+RBF interpolation from LLM-derived surface points. Schema in
+[Field grid schema](#field-grid-schema).
+
+Part 3 may consume this and produce GeoJSON contours in
+`data/layers/depth_contours.geojson`.
+
+### 8. Optimization API (Part 3)
+
+`POST /api/optimize` is owned by Part 3 and is **not** implemented in
+this backend. It reads `depth_to_bedrock.npz` and returns:
+
+```json
+{ "optimal_d": 24.3, "objective": 1.27, "constraints_ok": true, "diagnostics": { ... } }
+```
+
+### 9. Team Workstreams
+
+- **Part 1 (Frontend):** Next.js on Vercel — MapLibre + R3F.
+- **Part 2 (this repo):** FastAPI, Ollama, RBF/GemPy, mesh + field
+  exports.
+- **Part 3 (GIS / Optimizer):** Open Data ingest, Kriging, `/api/optimize`.
+
+### 10. Integration contracts
+
+The full contract list (file layouts, API shapes, CRS, demo
+run-of-show) lives in `planning/part-2-design.md` and
+`planning/part-2-tasks.md`. The runtime API contract for Part 1 + 3
+is the [API contracts](#api-contracts) section above — that is
+authoritative.
 
 ---
 
-## 12. License & Attribution
-* **geo-lm:** MIT — preserve license and attribution when forking.
-* **NYC Open Data:** Per-dataset terms and attribution strings in the layer manifest and UI.
-* **USGS reports:** Public-domain geology sources; cite map/report numbers in the app **About** panel.
+## License
+
+- **geo-nyc** code: MIT.
+- **geo-lm** reference code: MIT — preserved attribution where re-used in spirit.
+- **NYC Open Data:** per-dataset terms; provenance recorded in `manifest.json`.
+- **USGS reports:** public domain; cited in the app About panel.

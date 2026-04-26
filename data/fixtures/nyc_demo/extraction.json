@@ -1,0 +1,97 @@
+{
+  "schema_version": "1",
+  "source": {
+    "title": "Surficial Geologic Map of the New York City Area (fixture)",
+    "publisher": "USGS (synthetic, fixture-only)",
+    "year": 2003,
+    "fixture": true,
+    "license": "Public domain (synthetic data crafted for the geo-nyc demo)"
+  },
+  "site": {
+    "name": "Lower Manhattan demo bbox",
+    "crs": "EPSG:32618",
+    "bbox_xy_m": {
+      "x_min": 582500.0,
+      "x_max": 583500.0,
+      "y_min": 4506000.0,
+      "y_max": 4507000.0
+    },
+    "depth_range_m": {
+      "z_min": -200.0,
+      "z_max": 0.0
+    }
+  },
+  "rocks": [
+    {
+      "id": "R_FILL",
+      "name": "Anthropogenic Fill",
+      "rock_type": "sedimentary",
+      "approximate_age": null,
+      "color_hex": "#C0B59A"
+    },
+    {
+      "id": "R_TILL",
+      "name": "Glacial Till",
+      "rock_type": "sedimentary",
+      "approximate_age": { "value": 0.02, "unit": "Ma" },
+      "color_hex": "#8B6F47"
+    },
+    {
+      "id": "R_OUTWASH",
+      "name": "Glacial Outwash Sand and Gravel",
+      "rock_type": "sedimentary",
+      "approximate_age": { "value": 0.018, "unit": "Ma" },
+      "color_hex": "#D2B48C"
+    },
+    {
+      "id": "R_SCHIST",
+      "name": "Manhattan Schist",
+      "rock_type": "metamorphic",
+      "approximate_age": { "value": 450.0, "unit": "Ma" },
+      "color_hex": "#5C4A3A"
+    }
+  ],
+  "events": [
+    {
+      "id": "D_SCHIST",
+      "kind": "deposition",
+      "rock_id": "R_SCHIST",
+      "time": { "value": 450.0, "unit": "Ma" },
+      "after": []
+    },
+    {
+      "id": "E_GLACIAL",
+      "kind": "erosion",
+      "after": ["D_SCHIST"]
+    },
+    {
+      "id": "D_TILL",
+      "kind": "deposition",
+      "rock_id": "R_TILL",
+      "time": { "value": 0.02, "unit": "Ma" },
+      "after": ["E_GLACIAL"]
+    },
+    {
+      "id": "D_OUTWASH",
+      "kind": "deposition",
+      "rock_id": "R_OUTWASH",
+      "time": { "value": 0.018, "unit": "Ma" },
+      "after": ["D_TILL"]
+    },
+    {
+      "id": "D_FILL",
+      "kind": "deposition",
+      "rock_id": "R_FILL",
+      "after": ["D_OUTWASH"]
+    }
+  ],
+  "depth_horizons_m": {
+    "ground_surface": 0.0,
+    "fill_base": -8.0,
+    "outwash_base": -25.0,
+    "till_base": -55.0,
+    "bedrock_top": -55.0,
+    "model_floor": -200.0
+  },
+  "notes": "Hand-crafted fixture loosely modelled on the Lower Manhattan stratigraphy. Used by /api/run when GEO_NYC_USE_FIXTURES=true."
+}

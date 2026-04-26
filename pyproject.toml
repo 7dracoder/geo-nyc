@@ -1,0 +1,108 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geo-nyc"
+version = "0.1.0"
+description = "Urban Subsurface AI: local, edge-computed pipeline that turns NYC geological PDFs into 3D subsurface models"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "geo-nyc team" }
+]
+keywords = ["geology", "gempy", "ollama", "fastapi", "nyc", "subsurface"]
+
+dependencies = [
+    # Web layer
+    "fastapi>=0.115,<0.117",
+    "uvicorn[standard]>=0.32,<0.36",
+    "python-multipart>=0.0.12",
+
+    # Config + validation
+    "pydantic>=2.8,<3",
+    "pydantic-settings>=2.6,<3",
+    "python-dotenv>=1.0",
+
+    # HTTP client (Ollama + future fetches)
+    "httpx>=0.27,<0.29",
+
+    # Document ingestion
+    "pymupdf>=1.24,<2",
+
+    # DSL parsing
+    "lark>=1.1.9,<2",
+
+    # Numerics + interpolation primitives
+    "numpy>=1.26,<3",
+    "scipy>=1.13,<2",
+
+    # CRS conversion (UTM 18N ↔ WGS84) for the scalar field exporter.
+    "pyproj>=3.6,<4",
+
+    # Mesh export
+    "trimesh>=4.4,<5",
+    "pygltflib>=1.16,<2",
+]
+
+[project.optional-dependencies]
+# GemPy is heavy and version-sensitive on Apple Silicon.
+# Install only when you want the real (non-fixture) GemPy modeling path.
+modeling = [
+    "gempy>=2024.2,<2025",
+]
+# Developer tooling.
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<2",
+    "respx>=0.21,<0.23",
+    "ruff>=0.6,<1",
+    "mypy>=1.11,<2",
+]
+
+[project.urls]
+Repository = "https://github.com/somaditya/geo-nyc"
+
+[project.scripts]
+geo-nyc = "api.main:run"
+
+[tool.setuptools.packages.find]
+include = ["api*", "geo_nyc*"]
+exclude = ["tests*", "data*", "planning*"]
+
+[tool.setuptools.package-data]
+"geo_nyc.parsers.dsl" = ["grammar.lark"]
+"geo_nyc.runs" = ["fixture_data/*.json", "fixture_data/*.dsl"]
+"geo_nyc.prompts" = ["*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI's idiomatic Depends() default values trip B008.
+"api/**/*.py" = ["B008"]
+"tests/**/*.py" = ["B008"]
+
+[tool.mypy]
+python_version = "3.12"
+strict_optional = true
+warn_unused_ignores = true
+ignore_missing_imports = true

@@ -1,0 +1,87 @@
+// Geology DSL grammar.
+//
+// Adapted with minor formatting changes from williamjsdavis/geo-lm
+// (MIT licence, https://github.com/williamjsdavis/geo-lm). The grammar
+// is the public contract between LLM extraction and the GemPy
+// transformer, so we keep it byte-for-byte compatible with upstream.
+//
+// Statements supported: ROCK, DEPOSITION, EROSION, INTRUSION.
+// Future extensions: FAULT, FOLD, METAMORPHISM (not yet wired).
+
+start: statement*
+
+statement: rock_stmt
+         | deposition_stmt
+         | erosion_stmt
+         | intrusion_stmt
+
+// --- Statement types ------------------------------------------------------
+
+rock_stmt:        "ROCK"        ID "[" rock_body       "]"
+deposition_stmt:  "DEPOSITION"  ID "[" event_body      "]"
+erosion_stmt:     "EROSION"     ID "[" erosion_body    "]"
+intrusion_stmt:   "INTRUSION"   ID "[" intrusion_body  "]"
+
+// --- Statement bodies -----------------------------------------------------
+
+rock_body: (rock_prop ";"?)*
+
+rock_prop: "name:" STRING          -> name_prop
+         | "type:" ROCK_TYPE       -> type_prop
+         | "age:"  age_value       -> age_prop
+
+event_body: (event_prop ";"?)*
+
+event_prop: "rock:"  ID            -> rock_ref_prop
+          | "time:"  time_value    -> time_prop
+          | "after:" id_list       -> after_prop
+
+erosion_body: (erosion_prop ";"?)*
+
+erosion_prop: "time:"  time_value  -> time_prop
+            | "after:" id_list     -> after_prop
+
+intrusion_body: (intrusion_prop ";"?)*
+
+intrusion_prop: "rock:"  ID                -> rock_ref_prop
+              | "style:" INTRUSION_STYLE   -> style_prop
+              | "time:"  time_value        -> time_prop
+              | "after:" id_list           -> after_prop
+
+// --- Values ---------------------------------------------------------------
+
+age_value:  NUMBER TIME_UNIT       -> absolute_age
+         |  UNKNOWN                -> unknown_age
+         |  EPOCH_NAME             -> epoch_age
+
+time_value: NUMBER TIME_UNIT       -> absolute_time
+          | UNKNOWN                -> unknown_time
+          | EPOCH_NAME             -> epoch_time
+
+id_list: ID ("," ID)*
+
+// --- Terminals ------------------------------------------------------------
+
+ROCK_TYPE:        "sedimentary" | "volcanic" | "intrusive" | "metamorphic"
+INTRUSION_STYLE:  "dike" | "sill" | "stock" | "batholith"
+TIME_UNIT:        "Ma" | "ka" | "Ga"
+UNKNOWN:          "\"?\""
+
+// IDs start with uppercase, followed by alphanumerics or underscore.
+ID: /[A-Z][A-Za-z0-9_]*/
+
+// Integers or decimals.
+NUMBER: /\d+(\.\d+)?/
+
+// Strings are either quoted (preferred) or anything up to ; / ] (legacy).
+STRING: /"[^"]*"/ | /[^;\[\]]+(?=;|\])/
+
+// Lower-case epoch names, e.g. "late Eocene".
+EPOCH_NAME: /[a-z][A-Za-z\s]*/
+
+// Comments start with # and continue to end of line.
+COMMENT: "#" /[^\n]/*
+
+%import common.WS
+%ignore WS
+%ignore COMMENT

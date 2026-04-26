@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "description": "Canonical NYC-area geological formations + alias spellings + default rock types and visualisation colours. Used by geo_nyc.domain.normalization to fold LLM extraction output onto a stable nomenclature.",
+  "formations": [
+    {
+      "canonical": "Manhattan Schist",
+      "rock_type": "metamorphic",
+      "color_hex": "#5C4A3A",
+      "aliases": [
+        "manhattan schist",
+        "Manhattan formation",
+        "Manhattan schist formation",
+        "Manhattan Schist Formation",
+        "MnS",
+        "Hartland-Manhattan schist"
+      ]
+    },
+    {
+      "canonical": "Inwood Marble",
+      "rock_type": "metamorphic",
+      "color_hex": "#D7CDC4",
+      "aliases": [
+        "inwood marble",
+        "Inwood marble formation",
+        "Inwood Formation"
+      ]
+    },
+    {
+      "canonical": "Fordham Gneiss",
+      "rock_type": "metamorphic",
+      "color_hex": "#7B6E59",
+      "aliases": [
+        "fordham gneiss",
+        "Fordham"
+      ]
+    },
+    {
+      "canonical": "Walloomsac Formation",
+      "rock_type": "metamorphic",
+      "color_hex": "#665C4F",
+      "aliases": [
+        "walloomsac formation",
+        "Walloomsac schist",
+        "Walloomsac"
+      ]
+    },
+    {
+      "canonical": "Hartland Formation",
+      "rock_type": "metamorphic",
+      "color_hex": "#4F5A4C",
+      "aliases": [
+        "hartland formation",
+        "Hartland schist",
+        "Hartland"
+      ]
+    },
+    {
+      "canonical": "Ravenswood Granodiorite",
+      "rock_type": "intrusive",
+      "color_hex": "#8C8074",
+      "aliases": [
+        "ravenswood granodiorite",
+        "Ravenswood pluton",
+        "Ravenswood"
+      ]
+    },
+    {
+      "canonical": "Glacial Till",
+      "rock_type": "sedimentary",
+      "color_hex": "#8B6F47",
+      "aliases": [
+        "glacial till",
+        "till",
+        "Quaternary glacial till",
+        "Pleistocene till"
+      ]
+    },
+    {
+      "canonical": "Glacial Outwash",
+      "rock_type": "sedimentary",
+      "color_hex": "#D2B48C",
+      "aliases": [
+        "glacial outwash",
+        "outwash sand and gravel",
+        "Glacial Outwash Sand and Gravel",
+        "outwash"
+      ]
+    },
+    {
+      "canonical": "Anthropogenic Fill",
+      "rock_type": "sedimentary",
+      "color_hex": "#C0B59A",
+      "aliases": [
+        "anthropogenic fill",
+        "fill",
+        "artificial fill",
+        "made ground",
+        "urban fill"
+      ]
+    }
+  ]
+}
