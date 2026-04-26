@@ -1,0 +1,14 @@
+---
+description: Commit git changes at the end of each task or logical chunk of work
+alwaysApply: true
+---
+
+# Git: commit after work
+
+When you finish a task, fix, or coherent set of edits in this repo:
+
+1. Run `git status` and review changes.
+2. **Commit** with a short, conventional one-line message (what changed, not how you feel about it).
+3. **Push** to the tracked remote when the user expects GitHub to stay current (they asked for commits after every work — default to push if network/auth is available).
+
+Do not leave the working tree dirty with completed work unless the user explicitly wants a WIP or uncommitted experiment. If there is nothing to commit, say so briefly.
