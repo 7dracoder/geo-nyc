@@ -66,3 +66,14 @@ uvicorn api.main:app --reload --port 8000
 curl http://127.0.0.1:8000/api/layers
 curl -X POST http://127.0.0.1:8000/api/optimize -H "Content-Type: application/json" -d "{\"mode\":\"geothermal\",\"params\":{\"d_min\":5,\"d_max\":60}}"
 ```
+
+## Integration handoff
+
+- Frontend consumes `web/public/layers/manifest.json` and `POST /api/optimize`.
+- Part 2 drops in `data/fields/depth.npz` + `data/fields/depth_meta.json` with `source: gempy`.
+- Rebuild command after new depth: `python scripts/build_field.py`.
+
+## Current status
+
+- Depth field source: `data/fields/depth_meta.json` -> `source: gempy`.
+- Last validated flow: `fetch_open_data.py` -> `generate_gempy_depth.py` -> `build_field.py` -> `/api/layers` + `/api/optimize`.
