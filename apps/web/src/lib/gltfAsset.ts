@@ -42,22 +42,58 @@ export function proxiedStaticFetchUrl(base: string, backendUrl: string): string 
   }
 }
 
-/** Some stacks (or dev rewrites) reject HEAD; fall back to a tiny ranged GET. */
+/**
+ * Probe a URL to confirm it returns binary/glTF content, not an HTML
+ * interstitial (free ngrok) or a 404 page that still 200s.
+ *
+ * Some stacks reject HEAD; fall back to a tiny ranged GET. Any
+ * `text/html` response is treated as failure so the resolver moves on
+ * to the next candidate (otherwise `useGLTF` later parses HTML and
+ * silently falls back to the Khronos duck).
+ */
 async function resourceOk(url: string): Promise<boolean> {
+  const looksHtml = (ct: string | null) =>
+    !!ct && /text\/html|application\/xhtml\+xml/i.test(ct);
   try {
-    let r = await fetch(url, { method: "HEAD", cache: "no-store" });
-    if (r.ok) return true;
-    if (r.status === 405 || r.status === 501) {
-      r = await fetch(url, {
-        method: "GET",
-        cache: "no-store",
-        headers: { Range: "bytes=0-0" },
-      });
-      return r.ok || r.status === 206;
-    }
-    return false;
+    const head = await fetch(url, {
+      method: "HEAD",
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
+    if (head.ok && !looksHtml(head.headers.get("content-type"))) return true;
+    if (head.ok && looksHtml(head.headers.get("content-type"))) return false;
+    if (head.status !== 405 && head.status !== 501) return false;
+  } catch {
+    // fall through to GET
+  }
+  try {
+    const get = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        Range: "bytes=0-0",
+        "ngrok-skip-browser-warning": "1",
+      },
+    });
+    if (!(get.ok || get.status === 206)) return false;
+    return !looksHtml(get.headers.get("content-type"));
   } catch {
     return false;
+  }
+}
+
+async function fetchJsonNoHtml<T>(url: string): Promise<T | null> {
+  try {
+    const r = await fetch(url, {
+      cache: "no-store",
+      headers: { "ngrok-skip-browser-warning": "1" },
+    });
+    if (!r.ok) return null;
+    const ct = r.headers.get("content-type") ?? "";
+    if (/text\/html|application\/xhtml\+xml/i.test(ct)) return null;
+    return (await r.json()) as T;
+  } catch {
+    return null;
   }
 }
 
@@ -86,18 +122,16 @@ async function meshUrlFromManifest(base: string, manifest: RunManifestJson): Pro
 }
 
 async function meshUrlFromConfiguredRunId(base: string, runId: string): Promise<string | null> {
-  const r = await fetch(`${base}/api/run/${encodeURIComponent(runId)}`, {
-    cache: "no-store",
-  });
-  if (!r.ok) return null;
-  const manifest = (await r.json()) as RunManifestJson;
+  const manifest = await fetchJsonNoHtml<RunManifestJson>(
+    `${base}/api/run/${encodeURIComponent(runId)}`,
+  );
+  if (!manifest) return null;
   return meshUrlFromManifest(base, manifest);
 }
 
 async function meshUrlFromLatestRun(base: string): Promise<string | null> {
-  const r = await fetch(`${base}/api/runs?limit=40`, { cache: "no-store" });
-  if (!r.ok) return null;
-  const body = (await r.json()) as RunListJson;
+  const body = await fetchJsonNoHtml<RunListJson>(`${base}/api/runs?limit=40`);
+  if (!body) return null;
   const items = body.items ?? [];
   const sorted = [...items].sort((a, b) => {
     const ta = a.created_at ?? "";
@@ -123,25 +157,51 @@ async function meshUrlFromLatestRun(base: string): Promise<string | null> {
  * 5. Khronos Duck fallback
  */
 export async function resolveGltfUrl(): Promise<string> {
+  const log = (where: string, url: string) => {
+    if (typeof window !== "undefined") {
+      console.info(`[geo-nyc] subsurface GLB resolved via ${where}:`, url);
+    }
+  };
+
   const fromEnv = trimEnv(process.env.NEXT_PUBLIC_GLTF_URL);
-  if (fromEnv) return fromEnv;
+  if (fromEnv) {
+    log("NEXT_PUBLIC_GLTF_URL", fromEnv);
+    return fromEnv;
+  }
 
   const base = typeof window !== "undefined" ? apiBase() : "";
   if (base) {
     const runId = trimEnv(process.env.NEXT_PUBLIC_MESH_RUN_ID);
     if (runId) {
       const pinned = await meshUrlFromConfiguredRunId(base, runId);
-      if (pinned) return pinned;
+      if (pinned) {
+        log(`NEXT_PUBLIC_MESH_RUN_ID=${runId}`, pinned);
+        return pinned;
+      }
     }
 
     const latest = await meshUrlFromLatestRun(base);
-    if (latest) return latest;
+    if (latest) {
+      log("latest run from /api/runs", latest);
+      return latest;
+    }
 
     const legacySample = `${base}/static/exports/sample.glb`;
-    if (await resourceOk(legacySample)) return legacySample;
+    if (await resourceOk(legacySample)) {
+      log("legacy sample.glb", legacySample);
+      return legacySample;
+    }
+  } else if (typeof window !== "undefined") {
+    console.warn(
+      "[geo-nyc] NEXT_PUBLIC_API_BASE_URL is not set or invalid; the dock cannot reach a run mesh.",
+    );
   }
 
-  if (await resourceOk(LOCAL_GLB)) return LOCAL_GLB;
+  if (await resourceOk(LOCAL_GLB)) {
+    log("public/exports/sample.glb", LOCAL_GLB);
+    return LOCAL_GLB;
+  }
 
+  log("Khronos Duck (last-resort fallback)", KHRONOS_DUCK_GLTF);
   return KHRONOS_DUCK_GLTF;
 }

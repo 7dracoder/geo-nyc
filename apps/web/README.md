@@ -12,16 +12,37 @@ Next.js app: NYC-focused map, optional subsurface GLB preview, address search, a
 ```bash
 cd apps/web
 npm install
+cp .env.local.example .env.local   # then edit NEXT_PUBLIC_API_BASE_URL
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000). The 3D dock prints
+`[geo-nyc] subsurface GLB resolved via …` to the browser console so you
+can see exactly which fallback won (run mesh, sample, or Khronos duck).
 
 ```bash
 npm run build   # production build
 npm run start   # after build
 npm run lint    # ESLint
 ```
+
+### Pointing the app at a tunnel (ngrok / cloudflared)
+
+Use the **same** origin on both sides — the Next app and the FastAPI host —
+or the manifest URLs the API stamps into runs won’t match what the browser
+can fetch.
+
+| Where | Variable | Example |
+|-------|----------|---------|
+| **`apps/web/.env.local`** *or* Vercel project settings | `NEXT_PUBLIC_API_BASE_URL` | `https://miah-sleetiest-azalea.ngrok-free.dev` |
+| **API host `.env`** | `GEO_NYC_PUBLIC_BASE_URL` | `https://miah-sleetiest-azalea.ngrok-free.dev` |
+
+After changing either, rebuild the Next app (`npm run build` or redeploy on
+Vercel) and restart the FastAPI process. Both `*.ngrok-free.app` and
+`*.ngrok-free.dev` hostnames work; the proxy file (`src/proxy.ts`) sets
+`ngrok-skip-browser-warning` and a non-browser User-Agent on every
+`/geo-nyc-proxy/*` request so free ngrok serves real JSON / GLB instead of
+the HTML interstitial.
 
 ## Map (`MapView.tsx`)
 
