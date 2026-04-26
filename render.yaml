@@ -1,0 +1,111 @@
+# Render blueprint for geo-nyc.
+#
+# One-click deploy: push this file, then visit
+# https://dashboard.render.com/iacs and pick this repo. Render will read
+# this file and create the service(s) below.
+#
+# What lives where after deploy:
+#   - Backend (FastAPI + Groq + RBF/synthetic mesh): this Render service.
+#   - Frontend (Next.js): stays on Vercel; just point its
+#     NEXT_PUBLIC_API_BASE_URL at the Render service URL.
+#
+# Free tier caveats (read these before relying on the demo):
+#   - The web service spins down after ~15 minutes of inactivity. First
+#     request after spin-down takes ~50s while uvicorn boots.
+#   - The free tier has *no persistent disk*. Anything written under
+#     ./data is wiped on every cold start. Seeded runs disappear unless
+#     you either (a) attach a paid persistent disk and uncomment the
+#     `disk:` block below, or (b) re-run `make seed-runs` after each
+#     restart (the bootstrap script is idempotent).
+#
+# Region note: pick "oregon" or "frankfurt" for free tier; the others
+# are paid. Groq's data center routing handles latency on its side.
+
+services:
+  - type: web
+    name: geo-nyc-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -e .
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+    envVars:
+      # --- Python runtime ---------------------------------------------
+      # The project pins Python to 3.12 in pyproject.toml; matching that
+      # avoids cibuildwheel surprises when pip resolves numpy/scipy.
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+      # --- LLM provider (Groq cloud Llama) -----------------------------
+      # GROQ_API_KEY is marked sync:false so Render prompts you for it
+      # in the dashboard at deploy time and never persists it in this
+      # file or in git.
+      - key: GEO_NYC_LLM_PROVIDER
+        value: groq
+      - key: GEO_NYC_GROQ_API_KEY
+        sync: false
+      - key: GEO_NYC_GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: GEO_NYC_GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GEO_NYC_LLM_TIMEOUT_SECONDS
+        value: "120"
+
+      # --- API server --------------------------------------------------
+      # Render injects $PORT and exposes the service at $RENDER_EXTERNAL_URL.
+      # `Settings.public_base_url` defaults to that URL automatically so
+      # run manifests stamp absolute /static/exports URLs the Vercel
+      # frontend can proxy to without manual copy-paste.
+      - key: GEO_NYC_API_HOST
+        value: 0.0.0.0
+      - key: GEO_NYC_DEBUG
+        value: "false"
+
+      # --- CORS --------------------------------------------------------
+      # The default config covers Vercel production + previews via the
+      # regex below. Add extra origins comma-separated if you also serve
+      # the frontend somewhere else.
+      - key: GEO_NYC_CORS_ORIGINS
+        value: https://geo-nyc.vercel.app,http://localhost:3000,http://localhost:5173
+      - key: GEO_NYC_CORS_ORIGIN_REGEX
+        value: ^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$
+
+      # --- Pipeline toggles -------------------------------------------
+      - key: GEO_NYC_USE_FIXTURES
+        value: "true"
+      - key: GEO_NYC_ENABLE_GEMPY
+        value: "false"
+      - key: GEO_NYC_LOG_LEVEL
+        value: INFO
+
+      # --- Storage roots ----------------------------------------------
+      # Free tier disk is ephemeral; these point at /var/data so a
+      # persistent disk (paid) can mount over them without code changes.
+      - key: GEO_NYC_DATA_DIR
+        value: /var/data
+      - key: GEO_NYC_DOCUMENTS_RAW_DIR
+        value: /var/data/documents/raw
+      - key: GEO_NYC_DOCUMENTS_EXTRACTED_DIR
+        value: /var/data/documents/extracted
+      - key: GEO_NYC_RUNS_DIR
+        value: /var/data/runs
+      - key: GEO_NYC_EXPORTS_DIR
+        value: /var/data/exports
+      - key: GEO_NYC_FIELDS_DIR
+        value: /var/data/fields
+      - key: GEO_NYC_CACHE_DIR
+        value: /var/data/cache
+
+    # --- Persistent disk (OPTIONAL — paid feature) ----------------------
+    # Uncomment to keep seeded runs across cold starts. Costs ~$1/mo for
+    # 1 GB on Render's standard plan tier. Free plan ignores `disk:`.
+    #
+    # disk:
+    #   name: geo-nyc-data
+    #   mountPath: /var/data
+    #   sizeGB: 1

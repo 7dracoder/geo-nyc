@@ -95,7 +95,16 @@ class Settings(BaseSettings):
     cors_origin_regex: str | None = Field(
         default=r"^https://geo-nyc(-[a-z0-9-]+)?\.vercel\.app$"
     )
-    public_base_url: str = Field(default="http://localhost:8000")
+    # On Render, ``RENDER_EXTERNAL_URL`` is the public origin of the web
+    # service (e.g. ``https://geo-nyc-api.onrender.com``). When set, we
+    # use it as the default for ``public_base_url`` so run manifests
+    # stamp the right absolute /static/exports URLs without the operator
+    # having to copy-paste the URL after the first deploy.
+    public_base_url: str = Field(
+        default_factory=lambda: os.environ.get(
+            "RENDER_EXTERNAL_URL", "http://localhost:8000"
+        )
+    )
 
     # --- Storage roots -----------------------------------------------------
 
