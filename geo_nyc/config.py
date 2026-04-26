@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     fields_dir: PathLike = Field(default=Path("./data/fields"))
     cache_dir: PathLike = Field(default=Path("./data/cache"))
 
+    # Part 3 (data layer) outputs. The fetch_open_data + build_field
+    # scripts in `geonyc-data/scripts/` write here; the merged
+    # `/api/layers` and `/api/optimize` routers read from here.
+    data_layer_dir: PathLike = Field(default=Path("./geonyc-data/genyc_data"))
+
     # --- Pipeline toggles --------------------------------------------------
 
     use_fixtures: bool = Field(default=True)
@@ -131,6 +136,14 @@ class Settings(BaseSettings):
             self.fields_dir,
             self.cache_dir,
         )
+
+    @property
+    def data_layer_layers_dir(self) -> Path:
+        return self.data_layer_dir / "layers"
+
+    @property
+    def data_layer_fields_dir(self) -> Path:
+        return self.data_layer_dir / "fields"
 
     def ensure_directories(self) -> None:
         """Create every storage directory referenced by these settings."""

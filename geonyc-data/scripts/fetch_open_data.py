@@ -208,8 +208,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mirror-web-public-dir",
-        default="web/public",
-        help="Optional directory to mirror generated layers for frontend static serving.",
+        default="../apps/web/public",
+        help=(
+            "Directory to mirror generated layers for frontend static serving. "
+            "Defaults to the integrated Next.js app at `apps/web/public/` "
+            "(relative to `geonyc-data/`). Pass an empty string to skip."
+        ),
     )
     parser.add_argument(
         "--boro-codes",
@@ -222,6 +226,7 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     codes = [int(item.strip()) for item in args.boro_codes.split(",") if item.strip()]
-    mirror_dir = Path(args.mirror_web_public_dir) if args.mirror_web_public_dir else None
+    mirror_value = (args.mirror_web_public_dir or "").strip()
+    mirror_dir = Path(mirror_value) if mirror_value else None
     manifest_path = run(Path(args.output_dir), codes, mirror_web_public_dir=mirror_dir)
     print(f"Manifest written to: {manifest_path}")

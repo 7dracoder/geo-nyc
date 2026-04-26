@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from api.routers import documents, health, runs
+from api.routers import documents, health, layers, optimize, runs
 from geo_nyc import __version__
 from geo_nyc.ai import get_default_provider, reset_provider_cache
 from geo_nyc.config import get_settings
@@ -86,6 +86,8 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(documents.router, prefix="/api")
     app.include_router(runs.router, prefix="/api")
+    app.include_router(layers.router, prefix="/api")
+    app.include_router(optimize.router, prefix="/api")
 
     settings.ensure_directories()
     app.mount(
@@ -97,6 +99,11 @@ def create_app() -> FastAPI:
         "/static/fields",
         StaticFiles(directory=str(settings.fields_dir), check_dir=False),
         name="fields",
+    )
+    app.mount(
+        "/static/layers",
+        StaticFiles(directory=str(settings.data_layer_layers_dir), check_dir=False),
+        name="layers",
     )
 
     @app.get("/", include_in_schema=False)

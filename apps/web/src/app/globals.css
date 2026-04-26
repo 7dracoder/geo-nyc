@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f7f6f3;
+  --panel: #fffef9;
+  --ink: #1c1917;
+  --muted: #57534e;
+  --line: #e7e5e4;
+  --accent: #1e3a5f;
+  /* Outside five-borough mask: cool mist that pairs with accent + Voyager tiles */
+  --map-outside: #dde3ee;
+  --map-frame-shadow: 0 20px 50px -20px rgb(28 25 23 / 0.16),
+    0 8px 24px -10px rgb(30 58 95 / 0.08);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif-display), ui-serif, Georgia, serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+.font-serif-display {
+  font-family: var(--font-serif);
+}
+
+/* Map chrome: controls + attribution match app tokens */
+.map-shell {
+  box-shadow: var(--map-frame-shadow);
+}
+
+.map-shell .maplibregl-map {
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.map-shell .maplibregl-canvas-container.maplibregl-interactive {
+  border-radius: inherit;
+}
+
+.map-shell .maplibregl-ctrl-top-right {
+  top: 10px;
+  right: 10px;
+}
+
+.map-shell .maplibregl-ctrl-group {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgb(255 254 249 / 0.94);
+  box-shadow: 0 4px 18px -4px rgb(28 25 23 / 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.map-shell .maplibregl-ctrl-group button {
+  width: 34px;
+  height: 34px;
+}
+
+.map-shell .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+
+.map-shell .maplibregl-ctrl-group button:hover {
+  background-color: rgb(247 246 243 / 0.98);
+}
+
+.map-shell .maplibregl-ctrl-attrib {
+  margin: 0 10px 10px;
+  max-width: none !important;
+  width: auto !important;
+  min-width: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: rgb(255 254 249 / 0.94) !important;
+  padding: 6px 10px !important;
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+  color: var(--muted) !important;
+  box-shadow: 0 2px 12px -4px rgb(28 25 23 / 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.map-shell .maplibregl-ctrl-attrib-inner {
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+.map-shell .maplibregl-ctrl-attrib.maplibregl-compact {
+  min-height: 0;
+}
+
+.map-shell .maplibregl-ctrl-attrib a {
+  color: var(--accent);
+  white-space: normal;
+}
+
+/* 3D preview: dock spans full map width so hover can grow sideways (vw-based Tailwind was capped / unreliable). */
+.subsurface-dock {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0.75rem;
+  bottom: 3rem;
+  z-index: 15;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+@media (min-width: 640px) {
+  .subsurface-dock {
+    inset-inline: 1rem;
+    bottom: 2.5rem;
+  }
+}
+
+.subsurface-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--line);
+  background: rgb(255 254 249 / 0.95);
+  backdrop-filter: blur(2px);
+  width: min(22rem, 100%);
+  max-width: 100%;
+  margin-inline-start: auto;
+  transition:
+    width 300ms ease,
+    margin-inline-start 300ms ease,
+    box-shadow 300ms ease;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.08);
+}
+
+.subsurface-panel:is(:hover, :focus-within) {
+  width: 100%;
+  margin-inline-start: 0;
+  z-index: 35;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.18);
+}
+
+.subsurface-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 12rem;
+  transition: height 300ms ease;
+}
+
+@media (min-width: 640px) {
+  .subsurface-canvas-wrap {
+    height: 14rem;
+  }
+}
+
+.subsurface-panel:is(:hover, :focus-within) .subsurface-canvas-wrap {
+  height: min(48vh, 34rem);
+}
+
+@media (min-width: 640px) {
+  .subsurface-panel:is(:hover, :focus-within) .subsurface-canvas-wrap {
+    height: min(52vh, 38rem);
+  }
+}

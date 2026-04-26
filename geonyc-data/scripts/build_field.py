@@ -262,8 +262,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hazard-geojson", default="genyc_data/layers/hurricane_evacuation_zones.geojson")
     parser.add_argument(
         "--mirror-web-public-dir",
-        default="web/public",
-        help="Optional directory to mirror generated manifest/contours for frontend static serving.",
+        default="../apps/web/public",
+        help=(
+            "Directory to mirror generated manifest/contours for frontend "
+            "static serving. Defaults to the integrated Next.js app at "
+            "`apps/web/public/` (relative to `geonyc-data/`). Pass an empty "
+            "string to skip."
+        ),
     )
     parser.add_argument("--grid-resolution", type=int, default=160)
     parser.add_argument("--sigma", type=float, default=1.6, help="Gaussian smoothing sigma.")
@@ -272,6 +277,7 @@ def parse_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args = parse_args()
+    mirror_value = (args.mirror_web_public_dir or "").strip()
     run(
         depth_npz=Path(args.depth_npz),
         depth_meta_json=Path(args.depth_meta_json),
@@ -283,6 +289,6 @@ if __name__ == "__main__":
         hazard_geojson=Path(args.hazard_geojson),
         grid_resolution=args.grid_resolution,
         sigma=args.sigma,
-        mirror_web_public_dir=Path(args.mirror_web_public_dir) if args.mirror_web_public_dir else None,
+        mirror_web_public_dir=Path(mirror_value) if mirror_value else None,
     )
     print("Field and contours generated successfully.")
