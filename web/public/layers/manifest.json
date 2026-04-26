@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-04-26T00:00:00Z",
+  "aoi_boro_codes": [1, 2, 3],
+  "aoi_crs": "EPSG:4326",
+  "projected_processing_crs": "EPSG:32618",
+  "layers": [
+    {
+      "id": "boroughs",
+      "title": "NYC Borough Boundaries (AOI)",
+      "type": "line",
+      "geojson_path": "/layers/boroughs.geojson",
+      "opacity": 0.8,
+      "legend_color": "#6B7280",
+      "source_url": "https://data.cityofnewyork.us/resource/gthc-hcne.geojson?$limit=5000",
+      "download_date": "2026-04-26"
+    },
+    {
+      "id": "aoi",
+      "title": "AOI Mask",
+      "type": "fill",
+      "geojson_path": "/layers/aoi.geojson",
+      "opacity": 0.15,
+      "legend_color": "#D1D5DB",
+      "source_url": "https://data.cityofnewyork.us/resource/gthc-hcne.geojson?$limit=5000",
+      "download_date": "2026-04-26"
+    },
+    {
+      "id": "flood_stub",
+      "title": "Flood Context (Stub)",
+      "type": "fill",
+      "geojson_path": "/layers/flood_stub.geojson",
+      "opacity": 0.35,
+      "legend_color": "#4C78A8",
+      "source_url": "https://data.cityofnewyork.us/",
+      "download_date": "2026-04-26"
+    },
+    {
+      "id": "depth_contours",
+      "title": "Depth Contours",
+      "type": "line",
+      "geojson_path": "/layers/depth_contours.geojson",
+      "opacity": 0.9,
+      "legend_color": "#B45309",
+      "source_url": "generated_from_depth_field",
+      "download_date": "2026-04-26"
+    }
+  ]
+}

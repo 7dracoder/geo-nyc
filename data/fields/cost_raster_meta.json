@@ -1,0 +1,14 @@
+{
+  "crs": "EPSG:4326",
+  "bbox": [
+    -74.08000183105469,
+    40.560001373291016,
+    -73.7699966430664,
+    40.93000030517578
+  ],
+  "resolution_m": 50,
+  "units": "meters_below_surface",
+  "source": "stub",
+  "generated_at": "2026-04-26T00:00:00Z",
+  "smoothing_method": "stub"
+}

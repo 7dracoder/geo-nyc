@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"boro_code": 1, "boro_name": "Manhattan"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-74.03, 40.70], [-74.03, 40.88], [-73.92, 40.88], [-73.92, 40.70], [-74.03, 40.70]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"boro_code": 2, "boro_name": "Bronx"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-73.95, 40.79], [-73.95, 40.92], [-73.76, 40.92], [-73.76, 40.79], [-73.95, 40.79]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"boro_code": 3, "boro_name": "Brooklyn"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-74.05, 40.57], [-74.05, 40.74], [-73.84, 40.74], [-73.84, 40.57], [-74.05, 40.57]]]
+      }
+    }
+  ]
+}

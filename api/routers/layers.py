@@ -1,0 +1,31 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+
+router = APIRouter(prefix="/api", tags=["layers"])
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MANIFEST_PATH = REPO_ROOT / "web" / "public" / "layers" / "manifest.json"
+
+
+@router.get("/layers")
+def get_layers() -> dict[str, list[dict[str, Any]]]:
+    if not MANIFEST_PATH.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Layer manifest not found at {MANIFEST_PATH}",
+        )
+
+    with MANIFEST_PATH.open("r", encoding="utf-8") as f:
+        payload = json.load(f)
+
+    if "layers" not in payload or not isinstance(payload["layers"], list):
+        raise HTTPException(
+            status_code=500,
+            detail="Layer manifest is invalid: expected a top-level `layers` list.",
+        )
+    return {"layers": payload["layers"]}

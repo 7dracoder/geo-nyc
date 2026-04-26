@@ -1,0 +1,13 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"zone": "flood_context"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[-74.02, 40.60], [-74.02, 40.68], [-73.93, 40.68], [-73.93, 40.60], [-74.02, 40.60]]]
+      }
+    }
+  ]
+}

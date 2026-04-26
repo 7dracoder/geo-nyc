@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Manhattan-Bronx-Brooklyn AOI (stub)"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-74.08, 40.56],
+            [-74.08, 40.93],
+            [-73.77, 40.93],
+            [-73.77, 40.56],
+            [-74.08, 40.56]
+          ]
+        ]
+      }
+    }
+  ]
+}
