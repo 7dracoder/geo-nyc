@@ -62,7 +62,7 @@ dev = [
 ]
 
 [project.urls]
-Repository = "https://github.com/somaditya/geo-nyc"
+Repository = "https://github.com/7dracoder/geo-nyc"
 
 [project.scripts]
 geo-nyc = "api.main:run"

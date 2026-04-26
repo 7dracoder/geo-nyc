@@ -118,7 +118,7 @@ curl -s http://localhost:11434/api/tags | jq .
 ### 2. Clone, venv, install
 
 ```bash
-git clone https://github.com/somaditya/geo-nyc.git
+git clone https://github.com/7dracoder/geo-nyc.git
 cd geo-nyc
 
 python3.12 -m venv .venv
@@ -389,9 +389,9 @@ Response: a full `RunManifest` (also written to
   "artifacts": [
     {
       "kind": "mesh",
-      "filename": "mesh.glb",
-      "relative_path": "r_20260426181022_a1b2c3d4/mesh.glb",
-      "url": "http://localhost:8000/static/exports/r_20260426181022_a1b2c3d4/mesh.glb",
+      "filename": "model.glb",
+      "relative_path": "r_20260426181022_a1b2c3d4/model.glb",
+      "url": "http://localhost:8000/static/exports/r_20260426181022_a1b2c3d4/model.glb",
       "bytes": 87340,
       "media_type": "model/gltf-binary",
       "metadata": { "engine": "rbf", "vertices": 4225, "faces": 8192 }
@@ -433,14 +433,14 @@ The FastAPI app mounts two static dirs:
 
 | Mount | Local dir | Used for |
 |---|---|---|
-| `/static/exports` | `data/exports/` | Per-run `.glb` mesh files (`<run_id>/mesh.glb`). |
+| `/static/exports` | `data/exports/` | Per-run `.glb` mesh files (`<run_id>/model.glb`). |
 | `/static/fields`  | `data/fields/`  | Per-run `depth_to_bedrock.npz` + `.json` sidecar (`<run_id>/depth_to_bedrock.npz`). |
 
 Each `Artifact.url` in a manifest is built from
 `GEO_NYC_PUBLIC_BASE_URL`, so:
 
-- Local dev → `http://localhost:8000/static/exports/r_<timestamp>_<hex8>/mesh.glb`
-- Vercel demo → `https://<your-tunnel>/static/exports/r_<timestamp>_<hex8>/mesh.glb`
+- Local dev → `http://localhost:8000/static/exports/r_<timestamp>_<hex8>/model.glb`
+- Vercel demo → `https://<your-tunnel>/static/exports/r_<timestamp>_<hex8>/model.glb`
 
 Run ids are sortable by creation time (`r_YYYYMMDDhhmmss_<hex8>`), so
 sorting filenames alphabetically gives newest-last.
@@ -605,7 +605,7 @@ geo-nyc/
 │   ├── fixtures/                 # Bundled demo fixtures
 │   ├── documents/                # raw PDFs + extracted JSON
 │   ├── runs/                     # per-run manifests + artifacts
-│   ├── exports/                  # /static/exports/<run_id>/mesh.glb
+│   ├── exports/                  # /static/exports/<run_id>/model.glb
 │   └── fields/                   # /static/fields/<run_id>/depth_to_bedrock.{npz,json}
 │
 ├── geo-lm/                       # (sibling) Reference repo, NOT imported

@@ -76,3 +76,12 @@ logs/
 
 # Sibling reference clone (lives outside the repo, but guard anyway)
 /geo-lm/
+
+# --- Node / web app ---
+node_modules/
+apps/web/.next/
+apps/web/out/
+.next/
+
+# Portable Node toolchain pinned for Windows devs
+/.tools/
